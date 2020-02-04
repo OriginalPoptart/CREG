@@ -110,7 +110,7 @@ class ADS1256:
         self.ADS1256_WaitDRDY()
         id = self.ADS1256_Read_data(REG_E['REG_STATUS'])
         id = id[0] >> 4
-        # print 'ID',id
+        #print ("ID",id)
         return id
         
     #The configuration parameters of ADC, gain and data rate
@@ -127,7 +127,7 @@ class ADS1256:
         config.spi_writebyte(buf)
         
         config.digital_write(self.cs_pin, GPIO.HIGH)#cs 1
-        config.delay_ms(1) 
+        #config.delay_ms(1)
 
 
 
@@ -176,6 +176,14 @@ class ADS1256:
         if (read & 0x800000):
             read &= 0xF000000
         return read
+
+    def getValueAtPin(self, pin):
+        self.ADS1256_SetChannal(pin)
+        self.ADS1256_WriteCmd(CMD['CMD_SYNC'])
+        # config.delay_ms(10)
+        self.ADS1256_WriteCmd(CMD['CMD_WAKEUP'])
+        # config.delay_ms(200)
+        return self.ADS1256_Read_ADC_Data()
  
     def ADS1256_GetChannalValue(self, Channel):
         if(ScanMode == 0):# 0  Single-ended input  8 channel1 Differential input  4 channe 

@@ -2,19 +2,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.animation as animation
 import ADS1256 as adc
-import time
 
 x_len = 10
 y_range = [0, 1]
 
 fig = plt.figure()
-ax = fig.add_subplot(2, 1, 2)
-ax2 = fig.add_subplot(2, 1, 1)
-#xs = list(range(0, x_len))
-#ys = [0] * x_len
-#ax.set_ylim(y_range)
+ax = fig.add_subplot(1, 1, 1)
+#ax2 = fig.add_subplot(2, 1, 1)
+xs = list(range(0, x_len))
+ys = [0] * x_len
+ax.set_ylim(y_range)
 
-#line, = ax.plot(xs, ys)
+line, = ax.plot(xs, ys)
 
 
 
@@ -56,40 +55,24 @@ def animate(i, ys):
 
     return line,
 
-#ani = animation.FuncAnimation(fig, animate, fargs=(ys,), interval=1, blit=True)
-#plt.show()
-
-total_length = 100
-
-xs = [0] * (total_length)
-ys = [0] * (total_length)
-ys1 = [0] * (total_length)
-
-numberOfTests = 1
-times = [0] * numberOfTests
-
-#for j in range(numberOfTests):
-begin = time.time()
-
-for i in range(total_length):
-    ys[i] = (power.getValueAtPin(1)*1.0/0x7fffff)
-    ys1[i] = (power.getValueAtPin(0)*1.0/0x7fffff)
-    xs[i] = (i)
-
-end = time.time()
-
-    #times [j] = end - begin
-
-totalTime = end-begin
-
-print(total_length," samples taken over ", totalTime, " seconds")
-print(total_length/totalTime, " samples per second")
-#print("Average samples per second = ", sum(times)/numberOfTests)
-
-plt.title("Power")
-plt.xlabel("Time")
-plt.ylabel("Watts")
-
-ax.plot(xs, ys)
-ax2.plot(xs, ys1)
+ani = animation.FuncAnimation(fig, animate, fargs=(ys,), interval=1, blit=True)
 plt.show()
+
+#total_length = 100
+
+#xs = [0] * (total_length)
+#ys = [0] * (total_length)
+#ys1 = [0] * (total_length)
+
+#for i in range(total_length):
+#    ys[i] = (power.ADS1256_GetAll()[1]*1.0/0x7fffff)
+#    ys1[i] = (power.ADS1256_GetAll()[0]*1.0/0x7fffff)
+#    xs[i] = (i)
+
+#plt.title("Power")
+#plt.xlabel("Time")
+#plt.ylabel("Watts")
+
+#ax.plot(xs, ys)
+#ax2.plot(xs, ys1)
+#plt.show()
