@@ -10,8 +10,8 @@ x_len = 10
 y_range = [0, 1]
 
 fig = plt.figure()
-ax = fig.add_subplot(2, 1, 2)
-ax2 = fig.add_subplot(2, 1, 1)
+#ax = fig.add_subplot(2, 1, 2)
+ax2 = fig.add_subplot(1, 1, 1)
 #xs = list(range(0, x_len))
 #ys = [0] * x_len
 #ax.set_ylim(y_range)
@@ -61,7 +61,7 @@ def animate(i, ys):
 #ani = animation.FuncAnimation(fig, animate, fargs=(ys,), interval=1, blit=True)
 #plt.show()
 
-total_length = 100
+total_length = 50
 
 #call(["./ads1256_test 100 > data"])
 
@@ -76,9 +76,11 @@ times = [0] * numberOfTests
 begin = time.time()
 
 for i in range(total_length):
-    ys[i] = (power.getValueAtPin(1)*1.0/0x7fffff)
-    ys1[i] = (power.getValueAtPin(0)*1.0/0x7fffff)
-    xs[i] = (i)
+    ys[i] = (power.getValueAtPin(2)*50.0/0x7fffff)
+    ys1[i] = (power.getValueAtPin(0)*255.0/0x7fffff)
+    xs[i] = (time.time()-begin)
+
+ys[0] = 2.5
 
 end = time.time()
 
