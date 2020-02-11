@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.animation as animation
 import ADS1256 as adc
 import time
+from subprocess import call
+
 
 x_len = 10
 y_range = [0, 1]
@@ -61,6 +63,8 @@ def animate(i, ys):
 
 total_length = 100
 
+#call(["./ads1256_test 100 > data"])
+
 xs = [0] * (total_length)
 ys = [0] * (total_length)
 ys1 = [0] * (total_length)
@@ -85,6 +89,11 @@ totalTime = end-begin
 print(total_length," samples taken over ", totalTime, " seconds")
 print(total_length/totalTime, " samples per second")
 #print("Average samples per second = ", sum(times)/numberOfTests)
+
+F = open("data", "w")
+for i in range (total_length):
+    F.write(str(xs[i]) + "\t" + str(ys[i]) + "\t" + str(ys1[i]) + "\n")
+F.close()
 
 plt.title("Power")
 plt.xlabel("Time")

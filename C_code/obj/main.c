@@ -6,6 +6,7 @@
 #include <time.h>
 #include <string.h>
 #include <sys/timeb.h>
+#include <sys/time.h>
 
 void  Handler(int signo)
 {
@@ -16,7 +17,7 @@ void  Handler(int signo)
     exit(0);
 }
 
-int main(void)
+int main(int argc, char** argv)
 { 
     //UDOUBLE ADC[8],i;
     fprintf(stderr, "demo\r\n");
@@ -30,23 +31,40 @@ int main(void)
         DEV_ModuleExit();
         exit(0);
     }
-
-    int totalSize = 10;
+    int totalSize = 100;
+    if (argc > 1){
+        totalSize = atoi(argv[1]);
+    }
 
     double current[totalSize];
     double voltage[totalSize];
+    double times[totalSize];
 
+    struct timeval stop1, start1;
+    gettimeofday(&start1, NULL);
+    clock_t clks = clock();
     for(int i = 0; i < totalSize; i++){
+        gettimeofday(&stop1, NULL);
+        times[i] = (stop1.tv_sec - start1.tv_sec) + (stop1.tv_usec - start1.tv_usec)/1000000.0;
         current[i] = ADS1256_GetChannalValue(0)*5.0/0x7fffff;
         voltage[i] = ADS1256_GetChannalValue(1)*5.0/0x7fffff;
+        //voltage[i] = ADS1256_GetChannalValue(3)*5.0/0x7fffff;
     }
-
+    clks = clock() - clks;
+    gettimeofday(&stop1, NULL);
     //FILE* file = fopen("data.txt", "w");
+    double totalTime = (stop1.tv_sec - start1.tv_sec) + (stop1.tv_usec - start1.tv_usec)/1000000.0;
+
+    FILE* dataFile = fopen("data", "w");
 
     for(int i = 0; i < totalSize; i++){
-        fprintf(stdout, "%d\t%f\t%f\n", i, current[i], voltage[i]);
+        //fputs("%f\t%f\t%f\n", times[i], current[i], voltage[i]);
+        fprintf(dataFile, "%f\t%f\t%f\n", times[i], current[i], voltage[i]);
     }
+    
+    fclose(dataFile);
 
+    fprintf(stderr, "Total clocks: %ld With time: %f seconds (%f samples per second)\n", clks, totalTime, totalSize/(totalTime));
     //fclose(file);
 
     /*while(1){
