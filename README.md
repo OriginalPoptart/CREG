@@ -11,3 +11,9 @@ Lost all the code and reinstalled the OS
 Got ADC to work with Pi
 Found out it's too slow and are looking for speedups
 Either going to find a faster animator or use samples
+
+-2/4/20
+Converted to the church of C and forsaken the evil serpent, Python
+
+-3/3/20
+Went back to Python, switched to pyqtgraph, now have real time
