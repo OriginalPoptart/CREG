@@ -73,7 +73,9 @@ for i in range(total_length):
 phase = ((p2[1]-p1[1])/period1) * 360 
 print("Phase =", phase, "degrees")
 
-win = pg.GraphicsLayoutWidget(show=True)
+###########################################
+
+win = pg.GraphicsLayoutWidget(show=True, size=(1200,600))
 win.setWindowTitle('Proof of Concept')
 
 #plt = pg.plot(ys2, title="Test", pen='r')
