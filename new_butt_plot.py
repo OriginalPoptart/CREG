@@ -177,7 +177,7 @@ class Plotter(QtGui.QWidget):
         for i in range (self.total_length):
             F.write(str(self.xs[i]) + "\t" + str(self.ys3[i]) + "\n")
         F.close()
-        print("saving to data file")
+        print("Saving to data file")
 
 def main():
     app = QtGui.QApplication(sys.argv)
