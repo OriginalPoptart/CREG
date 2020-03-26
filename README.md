@@ -17,3 +17,6 @@ Converted to the church of C and forsaken the evil serpent, Python
 
 -3/3/20
 Went back to Python, switched to pyqtgraph, now have real time
+
+-3/26/20
+Coronavirus changes: no ADC, no fun
