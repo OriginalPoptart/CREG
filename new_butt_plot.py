@@ -26,7 +26,7 @@ class Plotter(QtGui.QWidget):
         self.power.ADS1256_init() 
         
         self.total_length = 200                     # Total sample size for plotting
-        self.peak = 0                               # Current peak used for
+        self.peak = 0                               # Current peak used for autoset
 
         # All the needed arrays for graphing
         self.xs = [0] * self.total_length
