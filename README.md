@@ -1,6 +1,12 @@
 # CREG
 Senior Design Repo
 
+Needed software:
+-Python3
+-PyQtGraph
+-PyQt5
+-numpy
+
 -11/6/19
 Added code for graphing and GPIO pin reads in real time
 
