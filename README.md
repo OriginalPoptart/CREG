@@ -3,9 +3,9 @@ Senior Design Repo
 
 Needed software:
 -Python3
--PyQtGraph
--PyQt5
--numpy
+-PyQtGraph http://www.pyqtgraph.org/documentation/installation.html
+-PyQt5 https://pypi.org/project/PyQt5/
+-numpy pip install numpy
 
 -11/6/19
 Added code for graphing and GPIO pin reads in real time
@@ -26,3 +26,6 @@ Went back to Python, switched to pyqtgraph, now have real time
 
 -3/26/20
 Coronavirus changes: no ADC, no fun
+
+-3/30/20
+Added better buttons
