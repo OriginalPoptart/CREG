@@ -11,13 +11,20 @@ class Plotter(QtGui.QWidget):
     def __init__(self):
         super(Plotter, self).__init__()
         
-        self.total_length = 360                     # total sample size
+        self.total_length = 50000                     # total sample size
         self.time = 1000                           # time of sample in ms
-        self.t
+        self.t = 0
+        self.time_scale = 100000.0
+        self.chunk_size = 1000
+
+        #self.start_time = 
 
         self.amplitude1 = 1.0
+        self.amp_scale1 = 1.0
         self.frequency1 = 1.0
+        self.freq_scale1 = 1
         self.offset1 = 0.0
+        self.offset_scale1 = 1.0
         self.phase1 = 0.0
         self.color1 = 'g'
 
@@ -31,9 +38,10 @@ class Plotter(QtGui.QWidget):
         self.color2 = 'w'
 
         # All the needed arrays for graphing
-        self.xs = []
-        self.ys1 = []
-        self.ys2 = []
+        self.xs = np.zeros(self.total_length)
+        self.ys1 = np.zeros(self.total_length)
+        self.ys2 = np.zeros(self.total_length)
+        self.ysp = np.zeros(self.total_length)
         
         self.init_ui()                              # Initializes the UI
         self.qt_connections()                       # Connects the buttons to their functions
@@ -47,7 +55,11 @@ class Plotter(QtGui.QWidget):
         self.plotwidget.addItem(self.powercurve1)        
 
         # Runs the update function on startup 
-        self.update()
+        #self.update()
+
+        self.timer = pg.QtCore.QTimer()
+        self.timer.timeout.connect(self.update)
+        self.timer.start(1)
 
     # Initializes all UI elements
     def init_ui(self):
@@ -187,14 +199,33 @@ class Plotter(QtGui.QWidget):
 
     # Updates the graph with the new waveform
     def update(self):
-        self.xs = np.linspace(0, 2*np.pi * self.time/1000, 360*(max(self.frequency1, self.frequency2*self.freq_scale2)))/(2*np.pi)
-        
-        self.ys1 = self.amplitude1 * np.sin(2*np.pi*self.frequency1*self.xs + self.phase1)
-        self.ys2 = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * self.xs + (-2*self.phase2*np.pi/360))
+        if self.t < self.total_length:
+            for i in range(self.total_length):
+                self.xs[self.t] = self.t / self.time_scale
+
+                self.ys1[self.t] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) + (-2*self.phase2*np.pi/360))
+                self.ys2[self.t] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) + (-2*self.phase2*np.pi/360))
+                self.ysp[self.t] = self.ys1[self.t] * self.ys2[self.t]
+
+                self.t += 1
+        else:
+            self.xs[:self.total_length-self.chunk_size] = self.xs[self.chunk_size:]
+            self.ys1[:self.total_length-self.chunk_size] = self.ys1[self.chunk_size:]
+            self.ys2[:self.total_length-self.chunk_size] = self.ys2[self.chunk_size:]
+            self.ysp[:self.total_length-self.chunk_size] = self.ysp[self.chunk_size:]
+            for i in range(self.chunk_size):
+                self.xs[self.total_length-self.chunk_size + i] = self.t/self.time_scale
+                self.ys1[self.total_length-self.chunk_size + i] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) + (-2*self.phase1*np.pi/360))
+                self.ys2[self.total_length-self.chunk_size + i] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) + (-2*self.phase2*np.pi/360))
+                self.ysp[self.total_length-self.chunk_size + i] = self.ys1[self.total_length-1] * self.ys2[self.total_length-1]
+
+                self.t += 1
 
         self.plotcurve1.setData(self.xs, self.ys1, pen=self.color1, name="AD1")
         self.plotcurve2.setData(self.xs, self.ys2 + (self.offset2 * self.offset_scale2), pen=self.color2, name="AD2")
-        self.powercurve1.setData(self.xs, self.ys1 + self.ys2, pen='r', name="Power")
+        self.powercurve1.setData(self.xs, self.ys1 * self.ys2, pen='r', name="Power")
+
+             
 
     # Edits Variables using pop-up windows
     def edit_amp1(self):
