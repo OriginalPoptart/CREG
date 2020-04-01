@@ -13,7 +13,6 @@ class Plotter(QtGui.QWidget):
         
         self.total_length = 360                     # total sample size
         self.time = 1000                           # time of sample in ms
-        self.t
 
         self.amplitude1 = 1.0
         self.frequency1 = 1.0

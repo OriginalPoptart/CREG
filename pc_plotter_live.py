@@ -5,17 +5,21 @@ from pyqtgraph.Qt import QtGui, QtCore
 from PyQt5.QtWidgets import QApplication, QWidget, QInputDialog, QLineEdit
 import pyqtgraph as pg
 import sys
+import functions
 
 class Plotter(QtGui.QWidget):
     # Initializes all element ins the system
     def __init__(self):
         super(Plotter, self).__init__()
         
-        self.total_length = 50000                     # total sample size
+        self.total_length = 10000                     # total sample size
         self.time = 1000                           # time of sample in ms
         self.t = 0
-        self.time_scale = 100000.0
-        self.chunk_size = 1000
+        self.time_scale = 10000.0
+        self.chunk_size = 250
+
+        self.still = True
+        self.pause = False
 
         #self.start_time = 
 
@@ -150,6 +154,13 @@ class Plotter(QtGui.QWidget):
 
         self.details_button = QtGui.QPushButton("Details")
 
+        # ** Column 3 **
+        self.still_button = QtGui.QPushButton("Still")
+        self.still_button.setCheckable(True)
+        self.pause_button = QtGui.QPushButton("Pause")
+        self.pause_button.setCheckable(True)
+        #self.still_button.toggle()
+
         #butt_win2.addRow("Amplitude", self.edit_freq_button2)
         # adds the buttons to the button window
         butt_win.addWidget(self.label1)
@@ -158,6 +169,8 @@ class Plotter(QtGui.QWidget):
         butt_win.addWidget(self.edit_phase_button1)
         butt_win.addWidget(self.edit_color_button1)
         butt_win.addWidget(self.saveButton)
+        butt_win.addWidget(self.still_button)
+        butt_win.addWidget(self.pause_button)
 
         
         
@@ -170,7 +183,7 @@ class Plotter(QtGui.QWidget):
         #butt_win2.addWidget(self.edit_color_button2)
         #butt_win2.addWidget(self.details_button)
 
-        self.setGeometry(20, 50, 1000, 600)     # Sets the layout
+        self.setGeometry(20, 50, 1200, 600)     # Sets the layout
 
         win.addLayout(butt_win)                 # adds the button window to the main window
         win.addLayout(butt_win2)
@@ -185,6 +198,8 @@ class Plotter(QtGui.QWidget):
         self.edit_color_button1.clicked.connect(self.edit_color1)
         self.edit_phase_button1.clicked.connect(self.edit_phase1)
         self.saveButton.clicked.connect(self.saveToFile)
+        self.still_button.clicked.connect(self.still_toggle)
+        self.pause_button.clicked.connect(self.pause_toggle)
 
         #self.edit_freq_button2.clicked.connect(self.edit_freq2)
         self.edit_freq_box2.valueChanged.connect(self.edit_freq2)
@@ -199,33 +214,46 @@ class Plotter(QtGui.QWidget):
 
     # Updates the graph with the new waveform
     def update(self):
-        if self.t < self.total_length:
-            for i in range(self.total_length):
-                self.xs[self.t] = self.t / self.time_scale
+        if(self.still):
+            self.update_still()
+        else:    
+            if(not self.pause):
+                if self.t < self.total_length:
+                    for i in range(self.total_length):
+                        self.xs[self.t] = self.t / self.time_scale
 
-                self.ys1[self.t] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) + (-2*self.phase2*np.pi/360))
-                self.ys2[self.t] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) + (-2*self.phase2*np.pi/360))
-                self.ysp[self.t] = self.ys1[self.t] * self.ys2[self.t]
+                        self.ys1[self.t] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) + (-2*self.phase2*np.pi/360))
+                        self.ys2[self.t] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) + (-2*self.phase2*np.pi/360))
+                        self.ysp[self.t] = self.ys1[self.t] * self.ys2[self.t]
 
-                self.t += 1
-        else:
-            self.xs[:self.total_length-self.chunk_size] = self.xs[self.chunk_size:]
-            self.ys1[:self.total_length-self.chunk_size] = self.ys1[self.chunk_size:]
-            self.ys2[:self.total_length-self.chunk_size] = self.ys2[self.chunk_size:]
-            self.ysp[:self.total_length-self.chunk_size] = self.ysp[self.chunk_size:]
-            for i in range(self.chunk_size):
-                self.xs[self.total_length-self.chunk_size + i] = self.t/self.time_scale
-                self.ys1[self.total_length-self.chunk_size + i] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) + (-2*self.phase1*np.pi/360))
-                self.ys2[self.total_length-self.chunk_size + i] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) + (-2*self.phase2*np.pi/360))
-                self.ysp[self.total_length-self.chunk_size + i] = self.ys1[self.total_length-1] * self.ys2[self.total_length-1]
+                        self.t += 1
+                else:
+                    self.xs[:self.total_length-self.chunk_size] = self.xs[self.chunk_size:]
+                    self.ys1[:self.total_length-self.chunk_size] = self.ys1[self.chunk_size:]
+                    self.ys2[:self.total_length-self.chunk_size] = self.ys2[self.chunk_size:]
+                    self.ysp[:self.total_length-self.chunk_size] = self.ysp[self.chunk_size:]
+                    for i in range(self.chunk_size):
+                        self.xs[self.total_length-self.chunk_size + i] = self.t/self.time_scale
+                        self.ys1[self.total_length-self.chunk_size + i] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) + (-2*self.phase1*np.pi/360))
+                        self.ys2[self.total_length-self.chunk_size + i] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) + (-2*self.phase2*np.pi/360))
+                        self.ysp[self.total_length-self.chunk_size + i] = self.ys1[self.total_length-1] * self.ys2[self.total_length-1]
 
-                self.t += 1
+                        self.t += 1
 
-        self.plotcurve1.setData(self.xs, self.ys1, pen=self.color1, name="AD1")
-        self.plotcurve2.setData(self.xs, self.ys2 + (self.offset2 * self.offset_scale2), pen=self.color2, name="AD2")
-        self.powercurve1.setData(self.xs, self.ys1 * self.ys2, pen='r', name="Power")
+                self.plotcurve1.setData(self.xs, self.ys1, pen=self.color1, name="AD1")
+                self.plotcurve2.setData(self.xs, self.ys2 + (self.offset2 * self.offset_scale2), pen=self.color2, name="AD2")
+                self.powercurve1.setData(self.xs, self.ys1 * self.ys2, pen='r', name="Power")
 
-             
+
+    def update_still(self):
+        xs_still = np.linspace(0, 2*np.pi * self.time/1000, 360*(max(self.frequency1, self.frequency2*self.freq_scale2)))/(2*np.pi)
+        
+        ys1_still = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * xs_still + (-2*self.phase1*np.pi/360))
+        ys2_still = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * xs_still + (-2*self.phase2*np.pi/360))
+
+        self.plotcurve1.setData(xs_still, ys1_still, pen=self.color1, name="AD1")
+        self.plotcurve2.setData(xs_still, ys2_still + (self.offset2 * self.offset_scale2), pen=self.color2, name="AD2")
+        self.powercurve1.setData(xs_still, ys1_still * ys2_still, pen='r', name="Power")
 
     # Edits Variables using pop-up windows
     def edit_amp1(self):
@@ -332,6 +360,17 @@ class Plotter(QtGui.QWidget):
             F.write(str(self.xs[i]) + "\t" + str(self.ys1[i]) + "\t" + str(self.ys2[i]) + "\n")
         F.close()
         print("Saving to data file")
+
+    def still_toggle(self):
+        self.still = not self.still
+        if(self.still):
+            self.t = 0
+            self.still_button.setText("Still")
+        else:
+            self.still_button.setText("Live")
+
+    def pause_toggle(self):
+        self.pause = not self.pause
 
     def print_details(self):
         print("Bruh")
