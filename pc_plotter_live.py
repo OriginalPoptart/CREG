@@ -5,6 +5,7 @@ from pyqtgraph.Qt import QtGui, QtCore
 from PyQt5.QtWidgets import QApplication, QWidget, QInputDialog, QLineEdit
 import pyqtgraph as pg
 import sys
+import math
 
 class Plotter(QtGui.QWidget):
     # Initializes all element ins the system
@@ -17,6 +18,7 @@ class Plotter(QtGui.QWidget):
         self.time_scale = 10000.0                   #samples per second, total time = total_length/time_scale
         self.chunk_size = 250
         self.time_unit = 1.0
+        self.power = 0.0
 
         self.still = True
         self.pause = False
@@ -144,12 +146,15 @@ class Plotter(QtGui.QWidget):
         self.color_box1.setCurrentIndex(2)
         butt_win.addRow("Color", self.color_box1)
 
+        self.space_label = QtGui.QLabel(" ")
+        butt_win.addRow(self.space_label)
+
         self.details_button = QtGui.QPushButton("Details")
 
         # ** Column 2 **
         # Label
         self.label2 = QtGui.QLabel("Plot 2")
-        butt_win2.addRow(self.label2)
+        butt_win.addRow(self.label2)
 
         # Frequency
         self.edit_freq_box2 = QtGui.QDoubleSpinBox()
@@ -157,11 +162,11 @@ class Plotter(QtGui.QWidget):
         self.edit_freq_box2.setGeometry(1,1,1,1) 
         self.edit_freq_box2.setSingleStep(.1)
         self.edit_freq_box2.setMaximum(1000)
-        butt_win2.addRow("Frequency", self.edit_freq_box2)
+        butt_win.addRow("Frequency", self.edit_freq_box2)
 
         self.freq_unit_box2 = QtGui.QComboBox()
         self.freq_unit_box2.addItems(["Hz", "kHz"])
-        butt_win2.addRow(self.freq_unit_box2)
+        butt_win.addRow(self.freq_unit_box2)
 
         # Amplitude
         self.edit_amp_box2 = QtGui.QDoubleSpinBox()
@@ -169,11 +174,11 @@ class Plotter(QtGui.QWidget):
         self.edit_amp_box2.setGeometry(1,1,1,1) 
         self.edit_amp_box2.setSingleStep(.1)
         self.edit_amp_box2.setRange(-1000, 1000)
-        butt_win2.addRow("Amplitude", self.edit_amp_box2)
+        butt_win.addRow("Amplitude", self.edit_amp_box2)
 
         self.amp_unit_box2 = QtGui.QComboBox()
         self.amp_unit_box2.addItems(["V", "kV", "mV"])
-        butt_win2.addRow(self.amp_unit_box2)
+        butt_win.addRow(self.amp_unit_box2)
 
         # Phase
         self.edit_phase_box2 = QtGui.QDoubleSpinBox()
@@ -182,7 +187,7 @@ class Plotter(QtGui.QWidget):
         self.edit_phase_box2.setSingleStep(15)
         self.edit_phase_box2.setRange(-360, 360)
         self.edit_phase_box2.setWrapping(True)
-        butt_win2.addRow("Phase", self.edit_phase_box2)
+        butt_win.addRow("Phase", self.edit_phase_box2)
 
         # Offset
         self.edit_offset_box2 = QtGui.QDoubleSpinBox()
@@ -190,17 +195,17 @@ class Plotter(QtGui.QWidget):
         self.edit_offset_box2.setGeometry(1,1,1,1) 
         self.edit_offset_box2.setSingleStep(.1)
         self.edit_offset_box2.setRange(-1000, 1000)
-        butt_win2.addRow("Offset", self.edit_offset_box2)
+        butt_win.addRow("Offset", self.edit_offset_box2)
 
         self.offset_unit_box2 = QtGui.QComboBox()
         self.offset_unit_box2.addItems(["V", "kV", "mV"])
-        butt_win2.addRow(self.offset_unit_box2)
+        butt_win.addRow(self.offset_unit_box2)
 
         # Color
         self.color_box2 = QtGui.QComboBox()
         self.color_box2.addItems(["Red", "Blue", "Green", "White"])
         self.color_box2.setCurrentIndex(3)
-        butt_win2.addRow("Color", self.color_box2)
+        butt_win.addRow("Color", self.color_box2)
 
         self.details_button = QtGui.QPushButton("Details")
 
@@ -211,7 +216,7 @@ class Plotter(QtGui.QWidget):
 
         # Sample Time
         self.edit_time_box = QtGui.QDoubleSpinBox()
-        self.edit_time_box.setValue(self.amplitude2)
+        self.edit_time_box.setValue(self.total_length/self.time_scale)
         self.edit_time_box.setGeometry(1,1,1,1) 
         self.edit_time_box.setSingleStep(.1)
         self.edit_time_box.setRange(0, 1000)
@@ -235,10 +240,17 @@ class Plotter(QtGui.QWidget):
         self.save_button = QtGui.QPushButton("Save")
         butt_win3.addRow(self.save_button)
 
+        # Power Label
+        self.power_label = QtGui.QLabel()
+        butt_win3.addRow(self.power_label)
+
+        self.power_rms_label = QtGui.QLabel()
+        butt_win3.addRow(self.power_rms_label)
+
         self.setGeometry(20, 50, 1200, 600)     # Sets the layout
 
         win.addLayout(butt_win)                 # adds the button window to the main window
-        win.addLayout(butt_win2)
+        #win.addLayout(butt_win2)
         win.addLayout(butt_win3)
 
         self.setLayout(win)                     # sets the main layout
@@ -282,8 +294,8 @@ class Plotter(QtGui.QWidget):
                     for i in range(self.total_length):
                         self.xs[self.t] = (self.t / self.time_scale) * self.time_unit
 
-                        self.ys1[self.t] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360))
-                        self.ys2[self.t] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360))
+                        self.ys1[self.t] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset1 * self.offset_scale1)
+                        self.ys2[self.t] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
                         self.ysp[self.t] = self.ys1[self.t] * self.ys2[self.t]
 
                         self.t += 1
@@ -294,27 +306,36 @@ class Plotter(QtGui.QWidget):
                     self.ysp[:self.total_length-self.chunk_size] = self.ysp[self.chunk_size:]
                     for i in range(self.chunk_size):
                         self.xs[self.total_length-self.chunk_size + i] = (self.t/self.time_scale) * self.time_unit
-                        self.ys1[self.total_length-self.chunk_size + i] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase1*np.pi/360))
-                        self.ys2[self.total_length-self.chunk_size + i] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360))
+                        self.ys1[self.total_length-self.chunk_size + i] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase1*np.pi/360)) + (self.offset1 * self.offset_scale2)
+                        self.ys2[self.total_length-self.chunk_size + i] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
                         self.ysp[self.total_length-self.chunk_size + i] = self.ys1[self.total_length-1] * self.ys2[self.total_length-1]
 
                         self.t += 1
 
                 self.plotcurve1.setData(self.xs, self.ys1, pen=self.color1, name="AD1")
-                self.plotcurve2.setData(self.xs, self.ys2 + (self.offset2 * self.offset_scale2), pen=self.color2, name="AD2")
+                self.plotcurve2.setData(self.xs, self.ys2, pen=self.color2, name="AD2")
                 self.powercurve1.setData(self.xs, self.ys1 * self.ys2, pen='r', name="Power")
+                self.update_labels()
 
 
     def update_still(self):
         #xs_still = np.linspace(0, 2*np.pi * self.total_length/self.time_scale, 360*(max(self.frequency1, self.frequency2*self.freq_scale2)))/(2*np.pi)
         xs_still = np.linspace(0, 2*np.pi * (self.total_length/self.time_scale) * self.time_unit, 36000)/(2*np.pi)
         
-        ys1_still = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * xs_still + (-2*self.phase1*np.pi/360))
-        ys2_still = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * xs_still + (-2*self.phase2*np.pi/360))
+        ys1_still = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * xs_still + (-2*self.phase1*np.pi/360)) + (self.offset1 * self.offset_scale1)
+        ys2_still = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * xs_still + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
 
         self.plotcurve1.setData(xs_still, ys1_still, pen=self.color1, name="AD1")
-        self.plotcurve2.setData(xs_still, ys2_still + (self.offset2 * self.offset_scale2), pen=self.color2, name="AD2")
+        self.plotcurve2.setData(xs_still, ys2_still, pen=self.color2, name="AD2")
         self.powercurve1.setData(xs_still, ys1_still * ys2_still, pen='r', name="Power")
+        #self.update_labels()
+
+        self.power_label.setText("Power = " + '%.3f'%(np.average((ys1_still * ys2_still))) + " W") 
+        self.power_rms_label.setText("Power RMS = %.3f W" %(np.average((ys1_still * ys2_still)) * (1/math.sqrt(2))))
+
+    def update_labels(self):
+        self.power_label.setText("Power = " + '%.3f'%(np.average((self.ys1 * self.ys2))) + " W") 
+        self.power_rms_label.setText("Power RMS = %.3f W" %(np.average((self.ys1 * self.ys2)) * (1/math.sqrt(2))))
 
     # Edits Variables using pop-up windows
     def edit_freq1(self):
@@ -437,26 +458,6 @@ class Plotter(QtGui.QWidget):
             self.color2 = 'w'
         #self.update()
 
-    def edit_phase1(self):
-        d, okPressed = QInputDialog.getDouble(self, "Phase Angle 2","Value:", self.phase2, 0, 2147483647, 2)
-        if okPressed:
-            self.phase2 = d
-            #self.update()
-
-    def edit_color1(self):
-        items = ("Red","Blue","Green", "White")
-        item, okPressed = QInputDialog.getItem(self, "Choose Your Color","Color1:", items, 0, False)
-        if okPressed and item:
-            if item == "Red":
-                self.color1 = 'r'
-            elif item == "Blue":
-                self.color1 = 'b'
-            elif item == "Green":
-                self.color1 = 'g'
-            elif item == "White":
-                self.color1 = 'w'
-            #self.update()
-
     def edit_time(self):
         self.time_scale = self.total_length / self.edit_time_box.value()
         self.total_time = self.total_length/self.time_scale
@@ -468,7 +469,7 @@ class Plotter(QtGui.QWidget):
         elif i == 1:
             self.time_unit = .001
         elif i == 2:
-            self.time_unit = 0.000001
+            self.time_unit = .000001
         else:
             self.time_unit = 1
 
