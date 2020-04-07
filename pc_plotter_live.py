@@ -1,7 +1,8 @@
 import numpy as np
 import time
 from subprocess import call
-from pyqtgraph.Qt import QtGui, QtCore
+#from pyqtgraph.Qt import QtGui, QtCore
+from PyQt5 import QtGui
 from PyQt5.QtWidgets import QApplication, QWidget, QInputDialog, QLineEdit
 import pyqtgraph as pg
 import sys
@@ -249,6 +250,12 @@ class Plotter(QtGui.QWidget):
         self.power_rms_label = QtGui.QLabel()
         butt_win3.addRow(self.power_rms_label)
 
+        self.apparent_power_label = QtGui.QLabel()
+        butt_win3.addRow(self.apparent_power_label)
+
+        self.reactive_power_label = QtGui.QLabel()
+        butt_win3.addRow(self.reactive_power_label)
+
         self.setGeometry(20, 50, 1200, 600)     # Sets the layout
 
         win.addLayout(butt_win)                 # adds the button window to the main window
@@ -342,6 +349,10 @@ class Plotter(QtGui.QWidget):
     def update_labels(self):
         self.power_label.setText("Power = " + '%.3f'%(np.average((self.ys1 * self.ys2))) + " W") 
         self.power_rms_label.setText("Power RMS = %.3f W" %(np.average((self.ys1 * self.ys2)) * (1/math.sqrt(2))))
+        if(self.phase1 == self.phase2):
+            self.apparent_power_label.setText("Apparent Power = %.3f VA" %(np.average((self.ys1 * self.ys2))/np.sin(-2*(self.phase2 - self.phase1)*np.pi/360) ))
+        else:
+            self.apparent_power_label.setText("Apparent Power = %.3f VA" %(np.average((self.ys1 * self.ys2))/np.sin(-2*(self.phase2 - self.phase1)*np.pi/360) ))
 
     # Edits Variables using pop-up windows
     def edit_freq1(self):
