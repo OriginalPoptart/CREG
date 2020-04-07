@@ -11,7 +11,7 @@ class Plotter(QtGui.QWidget):
     # Initializes all element ins the system
     def __init__(self):
         super(Plotter, self).__init__()
-        
+        print("Starting init")
         self.total_length = 10000                   # total sample size
         self.time = 1000                           # time of sample in ms
         self.t = 0
@@ -66,10 +66,12 @@ class Plotter(QtGui.QWidget):
         self.timer = pg.QtCore.QTimer()
         self.timer.timeout.connect(self.update)
         self.timer.start(1)
+        print("init complete!")
 
     # Initializes all UI elements
     def init_ui(self):
         # Sets title and UI layout
+        print("Starting init_ui")
         self.setWindowTitle('Plotter')
         win = QtGui.QBoxLayout(QtGui.QBoxLayout.LeftToRight)
         
@@ -255,9 +257,11 @@ class Plotter(QtGui.QWidget):
 
         self.setLayout(win)                     # sets the main layout
         self.show()                             # displays the window
+        print("init_ui complete!")
 
     # Connects the logic of the buttons to their respective functions
     def qt_connections(self):
+        print("Connecting Buttons...")
         self.edit_freq_box1.valueChanged.connect(self.edit_freq1)
         self.freq_unit_box1.currentIndexChanged.connect(self.freq_unit1)
         self.edit_amp_box1.valueChanged.connect(self.edit_amp1)
@@ -282,10 +286,12 @@ class Plotter(QtGui.QWidget):
         self.save_button.clicked.connect(self.saveToFile)
         self.still_button.clicked.connect(self.still_toggle)
         self.pause_button.clicked.connect(self.pause_toggle)
+        print("Buttons Complete!")
         
 
     # Updates the graph with the new waveform
     def update(self):
+        print("Updating...")
         if(self.still):
             self.update_still()
         else:    
