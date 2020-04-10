@@ -1,8 +1,6 @@
 import numpy as np
 import time
-from subprocess import call
-#from pyqtgraph.Qt import QtGui, QtCore
-from PyQt5 import QtGui
+from PyQt5 import QtGui, QtCore
 from PyQt5.QtWidgets import QApplication, QWidget, QInputDialog, QLineEdit
 import pyqtgraph as pg
 import sys
@@ -17,9 +15,11 @@ class Plotter(QtGui.QWidget):
         self.time = 1000                           # time of sample in ms
         self.t = 0
         self.time_scale = 10000.0                   #samples per second, total time = total_length/time_scale
-        self.chunk_size = 250
+        self.chunk_size = 500
         self.time_unit = 1.0
         self.power = 0.0
+
+        self.timer_thing = time.time()
 
         self.still = True
         self.pause = False
@@ -64,7 +64,7 @@ class Plotter(QtGui.QWidget):
         # Runs the update function on startup 
         #self.update()
 
-        self.timer = pg.QtCore.QTimer()
+        self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update)
         self.timer.start(1)
         print("init complete!")
@@ -298,37 +298,39 @@ class Plotter(QtGui.QWidget):
 
     # Updates the graph with the new waveform
     def update(self):
-        print("Updating...")
+        #print("Updating...")
         if(self.still):
             self.update_still()
         else:    
             if(not self.pause):
-                if self.t < self.total_length:
-                    for i in range(self.total_length):
-                        self.xs[self.t] = (self.t / self.time_scale) * self.time_unit
+                if(time.time() - self.timer_thing > self.chunk_size/self.total_length*1.0):
+                    if self.t < self.total_length:
+                        for i in range(self.total_length):
+                            self.xs[self.t] = (self.t / self.time_scale) * self.time_unit
 
-                        self.ys1[self.t] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset1 * self.offset_scale1)
-                        self.ys2[self.t] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
-                        self.ysp[self.t] = self.ys1[self.t] * self.ys2[self.t]
+                            self.ys1[self.t] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset1 * self.offset_scale1)
+                            self.ys2[self.t] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
+                            self.ysp[self.t] = self.ys1[self.t] * self.ys2[self.t]
 
-                        self.t += 1
-                else:
-                    self.xs[:self.total_length-self.chunk_size] = self.xs[self.chunk_size:]
-                    self.ys1[:self.total_length-self.chunk_size] = self.ys1[self.chunk_size:]
-                    self.ys2[:self.total_length-self.chunk_size] = self.ys2[self.chunk_size:]
-                    self.ysp[:self.total_length-self.chunk_size] = self.ysp[self.chunk_size:]
-                    for i in range(self.chunk_size):
-                        self.xs[self.total_length-self.chunk_size + i] = (self.t/self.time_scale) * self.time_unit
-                        self.ys1[self.total_length-self.chunk_size + i] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase1*np.pi/360)) + (self.offset1 * self.offset_scale2)
-                        self.ys2[self.total_length-self.chunk_size + i] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
-                        self.ysp[self.total_length-self.chunk_size + i] = self.ys1[self.total_length-1] * self.ys2[self.total_length-1]
+                            self.t += 1
+                    else:
+                        self.timer_thing = time.time()
+                        self.xs[:self.total_length-self.chunk_size] = self.xs[self.chunk_size:]
+                        self.ys1[:self.total_length-self.chunk_size] = self.ys1[self.chunk_size:]
+                        self.ys2[:self.total_length-self.chunk_size] = self.ys2[self.chunk_size:]
+                        self.ysp[:self.total_length-self.chunk_size] = self.ysp[self.chunk_size:]
+                        for i in range(self.chunk_size):
+                            self.xs[self.total_length-self.chunk_size + i] = (self.t/self.time_scale) * self.time_unit
+                            self.ys1[self.total_length-self.chunk_size + i] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase1*np.pi/360)) + (self.offset1 * self.offset_scale2)
+                            self.ys2[self.total_length-self.chunk_size + i] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
+                            self.ysp[self.total_length-self.chunk_size + i] = self.ys1[self.total_length-1] * self.ys2[self.total_length-1]
 
-                        self.t += 1
+                            self.t += 1
 
-                self.plotcurve1.setData(self.xs, self.ys1, pen=self.color1, name="AD1")
-                self.plotcurve2.setData(self.xs, self.ys2, pen=self.color2, name="AD2")
-                self.powercurve1.setData(self.xs, self.ys1 * self.ys2, pen='r', name="Power")
-                self.update_labels()
+                    self.plotcurve1.setData(self.xs, self.ys1, pen=self.color1, name="AD1")
+                    self.plotcurve2.setData(self.xs, self.ys2, pen=self.color2, name="AD2")
+                    self.powercurve1.setData(self.xs, self.ys1 * self.ys2, pen='r', name="Power")
+                    self.update_labels(np.average((self.ys1 * self.ys2)))
 
 
     def update_still(self):
@@ -343,16 +345,22 @@ class Plotter(QtGui.QWidget):
         self.powercurve1.setData(xs_still, ys1_still * ys2_still, pen='r', name="Power")
         #self.update_labels()
 
-        self.power_label.setText("Power = " + '%.3f'%(np.average((ys1_still * ys2_still))) + " W") 
-        self.power_rms_label.setText("Power RMS = %.3f W" %(np.average((ys1_still * ys2_still)) * (1/math.sqrt(2))))
+        self.update_labels(np.average((ys1_still * ys2_still)))
+        #self.power_label.setText("Average Power = " + '%.3f'%(np.average((ys1_still * ys2_still))) + " W") 
+        #self.power_rms_label.setText("Power RMS = %.3f W" %(np.average((ys1_still * ys2_still)) * (1/math.sqrt(2))))
+        #if(self.phase1 == self.phase2):
+            #self.apparent_power_label.setText("Apparent Power = %.3f VA" %(np.average((ys1_still * ys2_still)) ))
+        #else:
+        #self.apparent_power_label.setText("Apparent Power = %.3f VA" %(np.average((ys1_still * ys2_still))/np.cos(2*(self.phase2 - self.phase1)*np.pi/360)))
 
-    def update_labels(self):
-        self.power_label.setText("Power = " + '%.3f'%(np.average((self.ys1 * self.ys2))) + " W") 
-        self.power_rms_label.setText("Power RMS = %.3f W" %(np.average((self.ys1 * self.ys2)) * (1/math.sqrt(2))))
-        if(self.phase1 == self.phase2):
-            self.apparent_power_label.setText("Apparent Power = %.3f VA" %(np.average((self.ys1 * self.ys2))/np.sin(-2*(self.phase2 - self.phase1)*np.pi/360) ))
-        else:
-            self.apparent_power_label.setText("Apparent Power = %.3f VA" %(np.average((self.ys1 * self.ys2))/np.sin(-2*(self.phase2 - self.phase1)*np.pi/360) ))
+    def update_labels(self, pwr):
+        reactive_power = (((self.amplitude1+self.offset1)*(self.amplitude2+self.offset2)))/2 * np.sin(2*(self.phase2 - self.phase1)*np.pi/360)
+        apparent_power = np.sqrt((pwr * pwr) + (reactive_power * reactive_power))
+        self.power_label.setText("True Power = %.3f W" %(pwr)) 
+        self.power_rms_label.setText("Power RMS = %.3f W" %(pwr * (1/math.sqrt(2))))
+        self.reactive_power_label.setText("Reactive Power = %.3f VAr" %(reactive_power))
+        self.apparent_power_label.setText("Apparent Power = %.3f VA" %(apparent_power))
+
 
     # Edits Variables using pop-up windows
     def edit_freq1(self):
@@ -505,6 +513,7 @@ class Plotter(QtGui.QWidget):
             self.still_button.setText("Still")
         else:
             self.still_button.setText("Live")
+            self.timer_thing = time.time()
 
     def pause_toggle(self):
         self.pause = not self.pause
