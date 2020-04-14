@@ -5,27 +5,31 @@ from PyQt5.QtWidgets import QApplication, QWidget, QInputDialog, QLineEdit
 import pyqtgraph as pg
 import sys
 import math
+import generator
 
 class Plotter(QtGui.QWidget):
-    # Initializes all element ins the system
     def __init__(self):
+        """Initializes all elements in the system"""
         super(Plotter, self).__init__()
         print("Starting init")
-        self.total_length = 10000                   # total sample size
+        self.total_length = 10000                  # total sample size
         self.time = 1000                           # time of sample in ms
         self.t = 0
-        self.time_scale = 10000.0                   #samples per second, total time = total_length/time_scale
+        self.time_scale = 10000.0                  # samples per second, total time = total_length/time_scale
         self.chunk_size = 500
         self.time_unit = 1.0
         self.power = 0.0
 
         self.timer_thing = time.time()
 
+        # Booleans for still, pause and noise
         self.still = True
         self.pause = False
+        self.noise = False
+        self.unoise = False
+        self.noise_magnitude = .01
 
-        #self.start_time = 
-
+        # Waveform 1 information 
         self.amplitude1 = 1.0
         self.amp_scale1 = 1.0
         self.frequency1 = 1.0
@@ -35,6 +39,7 @@ class Plotter(QtGui.QWidget):
         self.phase1 = 0.0
         self.color1 = 'g'
 
+        # Waveform 2 information
         self.amplitude2 = 1.0
         self.amp_scale2 = 1.0
         self.frequency2 = 1.0
@@ -61,39 +66,32 @@ class Plotter(QtGui.QWidget):
         self.plotwidget.addItem(self.plotcurve2)
         self.plotwidget.addItem(self.powercurve1)        
 
-        # Runs the update function on startup 
-        #self.update()
-
+        # Sets self.update() to repeat
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update)
         self.timer.start(1)
         print("init complete!")
 
-    # Initializes all UI elements
     def init_ui(self):
+        """Initializes all UI elements"""
         # Sets title and UI layout
         print("Starting init_ui")
-        self.setWindowTitle('Plotter')
+        self.setWindowTitle('Digital Wattmeter Simulator')
         win = QtGui.QBoxLayout(QtGui.QBoxLayout.LeftToRight)
         
         # creates a plot widget and adds it to the window
         self.plotwidget = pg.PlotWidget()
-        self.plotwidget.setTitle("Test")
+        self.plotwidget.setTitle("Power")
         self.plotwidget.setLabel('left', "Voltage(V)")
         self.plotwidget.setLabel('bottom', "Time(s)")
         self.plotwidget.showGrid(x=True, y=True)
-        #self.plotwidget.addLegend()
-        win.addWidget(self.plotwidget)
-        #self.combo = pg.ComboBox()
-        #win.addWidget(self.combo)
-        #butt_win3 = QtGui.QBoxLayout(QtGui.QBoxLayout.TopToBottom) 
-        #butt_win2 = QtGui.QBoxLayout(QtGui.QBoxLayout.TopToBottom) 
+        win.addWidget(self.plotwidget) 
 
         butt_win = QtGui.QFormLayout()
-        butt_win2 = QtGui.QFormLayout()
         butt_win3 = QtGui.QFormLayout()
 
         # ** Column 1 **
+        # Waveform 1
         # Label
         self.label1 = QtGui.QLabel("Plot 1")
         butt_win.addRow(self.label1)
@@ -154,7 +152,7 @@ class Plotter(QtGui.QWidget):
 
         self.details_button = QtGui.QPushButton("Details")
 
-        # ** Column 2 **
+        # Waveform 2
         # Label
         self.label2 = QtGui.QLabel("Plot 2")
         butt_win.addRow(self.label2)
@@ -212,7 +210,7 @@ class Plotter(QtGui.QWidget):
 
         self.details_button = QtGui.QPushButton("Details")
 
-        # ** Column 3 **
+        # ** Column 2 **
         # Label
         self.label3 = QtGui.QLabel("Sampling")
         butt_win3.addRow(self.label3)
@@ -243,32 +241,49 @@ class Plotter(QtGui.QWidget):
         self.save_button = QtGui.QPushButton("Save")
         butt_win3.addRow(self.save_button)
 
-        # Power Label
+        # Power Labels
         self.power_label = QtGui.QLabel()
         butt_win3.addRow(self.power_label)
 
         self.power_rms_label = QtGui.QLabel()
         butt_win3.addRow(self.power_rms_label)
 
-        self.apparent_power_label = QtGui.QLabel()
-        butt_win3.addRow(self.apparent_power_label)
-
         self.reactive_power_label = QtGui.QLabel()
         butt_win3.addRow(self.reactive_power_label)
 
-        self.setGeometry(20, 50, 1200, 600)     # Sets the layout
+        self.apparent_power_label = QtGui.QLabel()
+        butt_win3.addRow(self.apparent_power_label)
+        butt_win3.addRow(self.space_label)
 
-        win.addLayout(butt_win)                 # adds the button window to the main window
-        #win.addLayout(butt_win2)
+        # Noise
+        self.label4 = QtGui.QLabel("Noise")
+        butt_win3.addRow(self.label4)
+
+        self.noise_button = QtGui.QPushButton("Random Noise")
+        self.noise_button.setCheckable(True)
+        butt_win3.addRow(self.noise_button)
+
+        self.rand_noise_box = QtGui.QDoubleSpinBox()
+        self.rand_noise_box.setValue(self.noise_magnitude)
+        self.rand_noise_box.setGeometry(1,1,1,1) 
+        self.rand_noise_box.setSingleStep(.01)
+        self.rand_noise_box.setRange(0, 1000)
+        butt_win3.addRow("Random Noise", self.rand_noise_box)
+
+        self.setGeometry(20, 50, 1200, 600)     # Sets the layout size
+
+        win.addLayout(butt_win)                 # adds the windows to the main window
         win.addLayout(butt_win3)
 
         self.setLayout(win)                     # sets the main layout
         self.show()                             # displays the window
         print("init_ui complete!")
 
-    # Connects the logic of the buttons to their respective functions
+    
     def qt_connections(self):
+        """Connects the logic of the buttons to their respective functions"""
         print("Connecting Buttons...")
+        # Waveform 1
         self.edit_freq_box1.valueChanged.connect(self.edit_freq1)
         self.freq_unit_box1.currentIndexChanged.connect(self.freq_unit1)
         self.edit_amp_box1.valueChanged.connect(self.edit_amp1)
@@ -278,7 +293,7 @@ class Plotter(QtGui.QWidget):
         self.offset_unit_box1.currentIndexChanged.connect(self.offset_unit1)
         self.color_box1.currentIndexChanged.connect(self.edit_color1)
 
-        #self.edit_freq_button2.clicked.connect(self.edit_freq2)
+        # Waveform 2
         self.edit_freq_box2.valueChanged.connect(self.edit_freq2)
         self.freq_unit_box2.currentIndexChanged.connect(self.freq_unit2)
         self.edit_amp_box2.valueChanged.connect(self.edit_amp2)
@@ -288,86 +303,30 @@ class Plotter(QtGui.QWidget):
         self.offset_unit_box2.currentIndexChanged.connect(self.offset_unit2)
         self.color_box2.currentIndexChanged.connect(self.edit_color2)
 
+        # Live/Timing menu
         self.edit_time_box.valueChanged.connect(self.edit_time)
         self.time_unit_box.currentIndexChanged.connect(self.edit_time_unit)
         self.save_button.clicked.connect(self.saveToFile)
         self.still_button.clicked.connect(self.still_toggle)
         self.pause_button.clicked.connect(self.pause_toggle)
+
+        # Noise
+        self.noise_button.clicked.connect(self.noise_toggle)
+        self.rand_noise_box.valueChanged.connect(self.edit_noise)
         print("Buttons Complete!")
         
 
-    # Updates the graph with the new waveform
     def update(self):
-        #print("Updating...")
-        if(self.still):
-            self.update_still()
-        else:    
-            if(not self.pause):
-                if(time.time() - self.timer_thing > self.chunk_size/self.total_length*1.0):
-                    if self.t < self.total_length:
-                        for i in range(self.total_length):
-                            self.xs[self.t] = (self.t / self.time_scale) * self.time_unit
-
-                            self.ys1[self.t] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset1 * self.offset_scale1)
-                            self.ys2[self.t] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
-                            self.ysp[self.t] = self.ys1[self.t] * self.ys2[self.t]
-
-                            self.t += 1
-                    else:
-                        self.timer_thing = time.time()
-                        self.xs[:self.total_length-self.chunk_size] = self.xs[self.chunk_size:]
-                        self.ys1[:self.total_length-self.chunk_size] = self.ys1[self.chunk_size:]
-                        self.ys2[:self.total_length-self.chunk_size] = self.ys2[self.chunk_size:]
-                        self.ysp[:self.total_length-self.chunk_size] = self.ysp[self.chunk_size:]
-                        for i in range(self.chunk_size):
-                            self.xs[self.total_length-self.chunk_size + i] = (self.t/self.time_scale) * self.time_unit
-                            self.ys1[self.total_length-self.chunk_size + i] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase1*np.pi/360)) + (self.offset1 * self.offset_scale2)
-                            self.ys2[self.total_length-self.chunk_size + i] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
-                            self.ysp[self.total_length-self.chunk_size + i] = self.ys1[self.total_length-1] * self.ys2[self.total_length-1]
-
-                            self.t += 1
-
-                    self.plotcurve1.setData(self.xs, self.ys1, pen=self.color1, name="AD1")
-                    self.plotcurve2.setData(self.xs, self.ys2, pen=self.color2, name="AD2")
-                    self.powercurve1.setData(self.xs, self.ys1 * self.ys2, pen='r', name="Power")
-                    self.update_labels(np.average((self.ys1 * self.ys2)))
-
-
-    def update_still(self):
-        #xs_still = np.linspace(0, 2*np.pi * self.total_length/self.time_scale, 360*(max(self.frequency1, self.frequency2*self.freq_scale2)))/(2*np.pi)
-        xs_still = np.linspace(0, 2*np.pi * (self.total_length/self.time_scale) * self.time_unit, 36000)/(2*np.pi)
-        
-        ys1_still = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * xs_still + (-2*self.phase1*np.pi/360)) + (self.offset1 * self.offset_scale1)
-        ys2_still = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * xs_still + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
-
-        self.plotcurve1.setData(xs_still, ys1_still, pen=self.color1, name="AD1")
-        self.plotcurve2.setData(xs_still, ys2_still, pen=self.color2, name="AD2")
-        self.powercurve1.setData(xs_still, ys1_still * ys2_still, pen='r', name="Power")
-        #self.update_labels()
-
-        self.update_labels(np.average((ys1_still * ys2_still)))
-        #self.power_label.setText("Average Power = " + '%.3f'%(np.average((ys1_still * ys2_still))) + " W") 
-        #self.power_rms_label.setText("Power RMS = %.3f W" %(np.average((ys1_still * ys2_still)) * (1/math.sqrt(2))))
-        #if(self.phase1 == self.phase2):
-            #self.apparent_power_label.setText("Apparent Power = %.3f VA" %(np.average((ys1_still * ys2_still)) ))
-        #else:
-        #self.apparent_power_label.setText("Apparent Power = %.3f VA" %(np.average((ys1_still * ys2_still))/np.cos(2*(self.phase2 - self.phase1)*np.pi/360)))
-
-    def update_labels(self, pwr):
-        reactive_power = (((self.amplitude1+self.offset1)*(self.amplitude2+self.offset2)))/2 * np.sin(2*(self.phase2 - self.phase1)*np.pi/360)
-        apparent_power = np.sqrt((pwr * pwr) + (reactive_power * reactive_power))
-        self.power_label.setText("True Power = %.3f W" %(pwr)) 
-        self.power_rms_label.setText("Power RMS = %.3f W" %(pwr * (1/math.sqrt(2))))
-        self.reactive_power_label.setText("Reactive Power = %.3f VAr" %(reactive_power))
-        self.apparent_power_label.setText("Apparent Power = %.3f VA" %(apparent_power))
-
+        """Calls the function in the generator library"""
+        generator.update(self)
 
     # Edits Variables using pop-up windows
     def edit_freq1(self):
+        """Edits frquency1"""
         self.frequency1 = self.edit_freq_box1.value()
-        #self.update()
 
     def freq_unit1(self, i):
+        """Sets the units for frequency1"""
         if i == 0:
             self.freq_scale1 = 1
         elif i == 1:
@@ -376,13 +335,13 @@ class Plotter(QtGui.QWidget):
             self.freq_scale1 = 0.001
         else:
             self.freq_scale1 = 1
-        #self.update()
 
     def edit_amp1(self):
+        """Edits amplitude1"""
         self.amplitude1 = self.edit_amp_box1.value()
-        #self.update()
 
     def amp_unit1(self, i):
+        """Sets the units for amplitude1"""
         if i == 0:
             self.amp_scale1 = 1
         elif i == 1:
@@ -391,17 +350,17 @@ class Plotter(QtGui.QWidget):
             self.amp_scale1 = 0.001
         else:
             self.amp_scale1 = 1
-        #self.update()
 
     def edit_phase1(self):
+        """Edits phase1 in degrees""" 
         self.phase1 = self.edit_phase_box1.value()
-        #self.update()
 
     def edit_offset1(self):
+        """Edits voltage offset1"""
         self.offset1 = self.edit_offset_box1.value()
-        #self.update()
 
     def offset_unit1(self, i):
+        """Sets the units for offset1"""
         if i == 0:
             self.offset_scale1 = 1
         elif i == 1:
@@ -413,6 +372,7 @@ class Plotter(QtGui.QWidget):
         #self.update()
 
     def edit_color1(self, i):
+        """Edits color1"""
         if i == 0:
             self.color1 = 'r'
         elif i == 1:
@@ -424,10 +384,11 @@ class Plotter(QtGui.QWidget):
         #self.update()
 
     def edit_freq2(self):
+        """Edits frequency2"""
         self.frequency2 = self.edit_freq_box2.value()
-        #self.update()
 
     def freq_unit2(self, i):
+        """Sets the units for frequency2"""
         if i == 0:
             self.freq_scale2 = 1
         elif i == 1:
@@ -436,13 +397,13 @@ class Plotter(QtGui.QWidget):
             self.freq_scale2 = 0.001
         else:
             self.freq_scale2 = 1
-        #self.update()
 
     def edit_amp2(self):
+        """Edits amplitude2"""
         self.amplitude2 = self.edit_amp_box2.value()
-        #self.update()
 
     def amp_unit2(self, i):
+        """Sets the units for amplitude2"""
         if i == 0:
             self.amp_scale2 = 1
         elif i == 1:
@@ -451,17 +412,17 @@ class Plotter(QtGui.QWidget):
             self.amp_scale2 = 0.001
         else:
             self.amp_scale2 = 1
-        #self.update()
 
     def edit_phase2(self):
+        """Edits phase2 in degrees"""
         self.phase2 = self.edit_phase_box2.value()
-        #self.update()
 
     def edit_offset2(self):
+        """Edits voltage offset2"""
         self.offset2 = self.edit_offset_box2.value()
-        #self.update()
 
     def offset_unit2(self, i):
+        """Sets units for offset2"""
         if i == 0:
             self.offset_scale2 = 1
         elif i == 1:
@@ -470,9 +431,9 @@ class Plotter(QtGui.QWidget):
             self.offset_scale2 = 0.001
         else:
             self.offset_scale2 = 1
-        #self.update()
 
     def edit_color2(self, i):
+        """Edits color2"""
         if i == 0:
             self.color2 = 'r'
         elif i == 1:
@@ -481,14 +442,15 @@ class Plotter(QtGui.QWidget):
             self.color2 = 'g'
         else:
             self.color2 = 'w'
-        #self.update()
 
     def edit_time(self):
+        """Adujusts the time_scale to match the given value with the total_time\n
+        Total time in seconds = total_length/time_scale"""
         self.time_scale = self.total_length / self.edit_time_box.value()
         self.total_time = self.total_length/self.time_scale
-        #self.update()
 
     def edit_time_unit(self, i):
+        """Sets the units for time"""
         if i == 0:
             self.time_unit = 1.0
         elif i == 1:
@@ -498,8 +460,8 @@ class Plotter(QtGui.QWidget):
         else:
             self.time_unit = 1
 
-    # Writes the data into the save file
     def saveToFile(self):
+        """# Writes the data into the save file"""
         F = open("data", "w")
         for i in range (self.total_length):
             F.write(str(self.xs[i]) + "\t" + str(self.ys1[i]) + "\t" + str(self.ys2[i]) + "\n")
@@ -507,23 +469,29 @@ class Plotter(QtGui.QWidget):
         print("Saving to data file")
 
     def still_toggle(self):
+        """Toggles Still and Live modes"""
         self.still = not self.still
         if(self.still):
             self.t = 0
             self.still_button.setText("Still")
         else:
             self.still_button.setText("Live")
-            self.timer_thing = time.time()
+            self.timer_thing = time.time()      # Sets the live timer for timing
 
     def pause_toggle(self):
+        """Toggles pause mode"""
         self.pause = not self.pause
 
-    def print_details(self):
-        print("Bruh")
+    def noise_toggle(self):
+        """Toggle random noise"""
+        self.noise = not self.noise
+
+    def edit_noise(self):
+        self.noise_magnitude = self.rand_noise_box.value()
 
 def main():
     app = QtGui.QApplication(sys.argv)
-    app.setApplicationName('Test')
+    app.setApplicationName('Digital Wattmeter Simulator')
     ex = Plotter()
 
     sys.exit(app.exec_())
