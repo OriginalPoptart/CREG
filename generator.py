@@ -99,7 +99,7 @@ def update_label(self, pwr):
     self.power_rms_label.setText("Power RMS = %.3f W" %(pwr * (1/math.sqrt(2))))
     self.reactive_power_label.setText("Reactive Power = %.3f VAr" %(reactive_power))
     self.apparent_power_label.setText("Apparent Power = %.3f VA" %(apparent_power))
-    self.power_factor_label.setText("Power Factor = %.2f " %(power_factor))
+    self.power_factor_label.setText("Power Factor = %.4f " %(power_factor))
 
 def add_rand_noise(self, arr, magnitude, switch=True):
     """Adds random noise using np.random
