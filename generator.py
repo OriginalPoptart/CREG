@@ -95,11 +95,19 @@ def update_label(self, pwr):
     reactive_power = (((self.amplitude1+self.offset1)*(self.amplitude2+self.offset2)))/2 * np.sin(2*(self.phase2 - self.phase1)*np.pi/360)
     apparent_power = np.sqrt((pwr * pwr) + (reactive_power * reactive_power))
     power_factor = np.cos((self.phase2 -self.phase1)*2*np.pi/360)
+    if((self.phase2 - self.phase1) == 0):
+        self.lead_lag_label.setText("Unity")
+    elif((self.phase2 - self.phase1) < 0):
+        self.lead_lag_label.setText("Leading")
+    elif((self.phase2 - self.phase1) > 0):
+        self.lead_lag_label.setText("Lagging")
+
     self.power_label.setText("Real Power = %.3f W" %(pwr)) 
     self.power_rms_label.setText("Power RMS = %.3f W" %(pwr * (1/math.sqrt(2))))
     self.reactive_power_label.setText("Reactive Power = %.3f VAr" %(reactive_power))
     self.apparent_power_label.setText("Apparent Power = %.3f VA" %(apparent_power))
     self.power_factor_label.setText("Power Factor = %.4f " %(power_factor))
+    
 
 def add_rand_noise(self, arr, magnitude, switch=True):
     """Adds random noise using np.random

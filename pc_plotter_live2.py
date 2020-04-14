@@ -256,6 +256,9 @@ class Plotter(QtGui.QWidget):
 
         self.power_factor_label = QtGui.QLabel()
         butt_win3.addRow(self.power_factor_label)
+
+        self.lead_lag_label = QtGui.QLabel()
+        butt_win3.addRow(self.lead_lag_label)
         butt_win3.addRow(self.space_label)
 
         # Noise
