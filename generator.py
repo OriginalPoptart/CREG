@@ -5,85 +5,82 @@ from PyQt5.QtWidgets import QApplication, QWidget, QInputDialog, QLineEdit
 import pyqtgraph as pg
 import sys
 import math
-import pc_plotter_live
+import waveform
+import Filter
+
+#import pc_plotter_live
 
 def update(self):
-        """Updates the graph with the new waveform\n 
-            Checks if paused or set to still mode\n
-            If set to live, updates one screen-full per second"""
-        # checks if user has the still image mode selected
-        if(self.still):
+    """Updates the graph with the new waveform\n 
+        Checks if paused or set to still mode\n
+        If set to live, updates one screen-full per second"""
+    # checks if user has the still image mode selected
+    if(not self.pause):    
+        if(not self.still):     # only updates if not paused
+            # Controls how fast the graph updates (One screen-full per second)
+            if(time.time() - self.timer_thing > self.chunk_size/self.total_length*1.0): 
+                self.timer_thing = time.time() # Refreshes the timer 
+
+                temp = np.linspace(self.xs[self.total_length-1], self.xs[self.total_length-1] + (self.chunk_size/self.time_scale) * self.time_unit, self.chunk_size)
+
+                # Shifts the data 
+                self.xs[:self.total_length-self.chunk_size] = self.xs[self.chunk_size:]
+                self.ys1[:self.total_length-self.chunk_size] = self.ys1[self.chunk_size:]
+                self.ys2[:self.total_length-self.chunk_size] = self.ys2[self.chunk_size:]
+                self.ysp[:self.total_length-self.chunk_size] = self.ysp[self.chunk_size:]
+
+                # Adds chunk_size more inputs to the end of the array
+                self.xs[self.total_length-self.chunk_size:] = temp
+                self.ys1[self.total_length-self.chunk_size:] = sin_from_waveform(temp, self.waveform1)#temp, self.waveform1.amplitude, self.waveform1.amp_scale, self.waveform1.frequency, self.freq_scale1, self.offset1, self.offset_scale1, self.waveform1.phase)
+                self.ys2[self.total_length-self.chunk_size:] = sin_from_waveform(temp, self.waveform2)#add_sin_wave(temp, self.waveform2.amplitude, self.waveform2.amp_scale, self.waveform2.frequency, self.freq_scale2, self.offset2, self.offset_scale2, self.waveform2.phase)
+                self.ysp[self.total_length-self.chunk_size:] = self.ys1[self.total_length-self.chunk_size:] * self.ys2[self.total_length-self.chunk_size:]
+
+                self.ys1[self.total_length - self.chunk_size:] = add_rand_noise(self, self.ys1[self.total_length - self.chunk_size:], self.noise_magnitude, temp, self.noise, self.unoise)
+                self.ys2[self.total_length - self.chunk_size:] = add_rand_noise(self, self.ys2[self.total_length - self.chunk_size:], self.noise_magnitude, temp, self.noise, self.unoise)
+
+                # Adds the data to the graphs
+                self.plotcurve1.setData(self.xs, self.ys1, pen=self.waveform1.color, name="AD1")
+                self.plotcurve2.setData(self.xs, self.ys2, pen=self.waveform2.color, name="AD2")
+                if(self.show_power):
+                    self.powercurve1.setData(self.xs, self.ys1 * self.ys2, pen=self.colorp, name="Power")
+                else:
+                    self.powercurve1.setData([],[])
+                if(self.show_noise):
+                    self.noisecurve.setData(self.xs, sin_from_waveform(self.xs, self.noiseform) + add_sin_wave(self.xs,amp=2*self.noiseform.amplitude, freq=2*self.noiseform.amplitude, phase=90), pen=self.noiseform.color)
+                else:
+                    self.noisecurve.setData([],[])
+                update_label(self, np.average((self.ys1 * self.ys2)))
+            #else:
+                #temp = 0
+                #print("Waiting...")
+        else:
             update_still(self)
-        else:    
-            if(not self.pause):     # only updates if not paused
-                # Controls how fast the graph updates (One screen-full per second)
-                if(time.time() - self.timer_thing > self.chunk_size/self.total_length*1.0): 
-                    # First pass through creates one screen-full of data
-                    if self.t < self.total_length:
-                        for i in range(self.total_length):
-                            self.xs[self.t] = (self.t / self.time_scale) * self.time_unit
-
-                            self.ys1[self.t] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset1 * self.offset_scale1)
-                            self.ys2[self.t] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
-                            #self.ysp[self.t] = self.ys1[self.t] * self.ys2[self.t]
-
-                            self.t += 1
-                        self.ys1 = add_rand_noise(self, self.ys1, self.noise_magnitude, self.noise)
-                        self.ys2 = add_rand_noise(self, self.ys2, self.noise_magnitude, self.noise)
-                        self.ysp = self.ys1 * self.ys2 
-
-                    # Shifts data chunk_size positions to the left and adds chunk_size more data points at the end
-                    else:
-                        self.timer_thing = time.time() # Refreshes the timer 
-
-                        # Shifts the data 
-                        self.xs[:self.total_length-self.chunk_size] = self.xs[self.chunk_size:]
-                        self.ys1[:self.total_length-self.chunk_size] = self.ys1[self.chunk_size:]
-                        self.ys2[:self.total_length-self.chunk_size] = self.ys2[self.chunk_size:]
-                        self.ysp[:self.total_length-self.chunk_size] = self.ysp[self.chunk_size:]
-
-                        # Adds chunk_size more inputs to the end of the array
-                        for i in range(self.chunk_size):
-                            self.xs[self.total_length-self.chunk_size + i] = (self.t/self.time_scale) * self.time_unit 
-                            self.ys1[self.total_length-self.chunk_size + i] = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase1*np.pi/360)) + (self.offset1 * self.offset_scale2)
-                            self.ys2[self.total_length-self.chunk_size + i] = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * (self.t/self.time_scale) * self.time_unit + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
-                            
-                            #self.ys1[:self.total_length - self.chunk_size] = self.add_rand_noise(self.ys1[:self.total_length - self.chunk_size], .005)
-                            #self.ys2 = self.add_rand_noise(self.ys2, .005)
-                            
-                            self.ysp[self.total_length-self.chunk_size + i] = self.ys1[self.total_length-1] * self.ys2[self.total_length-1]
-
-                            self.t += 1
-
-                    self.ys1[self.total_length - self.chunk_size:] = add_rand_noise(self, self.ys1[self.total_length - self.chunk_size:], self.noise_magnitude, self.noise)
-                    self.ys2[self.total_length - self.chunk_size:] = add_rand_noise(self, self.ys2[self.total_length - self.chunk_size:], self.noise_magnitude, self.noise)
-
-                    # Adds the data to the graphs
-                    self.plotcurve1.setData(self.xs, self.ys1, pen=self.color1, name="AD1")
-                    self.plotcurve2.setData(self.xs, self.ys2, pen=self.color2, name="AD2")
-                    self.powercurve1.setData(self.xs, self.ys1 * self.ys2, pen='r', name="Power")
-                    update_label(self, np.average((self.ys1 * self.ys2)))
-                #else:
-                    #temp = 0
-                    #print("Waiting...")
 
 def update_still(self):
-        """Updates plots for still mode"""
-        #xs_still = np.linspace(0, 2*np.pi * self.total_length/self.time_scale, 360*(max(self.frequency1, self.frequency2*self.freq_scale2)))/(2*np.pi)
-        xs_still = np.linspace(0, 2*np.pi * (self.total_length/self.time_scale) * self.time_unit, 36000)/(2*np.pi)
-        
-        ys1_still = self.amplitude1 * self.amp_scale1 * np.sin(2*np.pi * self.frequency1 * self.freq_scale1 * xs_still + (-2*self.phase1*np.pi/360)) + (self.offset1 * self.offset_scale1)
-        ys2_still = self.amplitude2 * self.amp_scale2 * np.sin(2*np.pi * self.frequency2 * self.freq_scale2 * xs_still + (-2*self.phase2*np.pi/360)) + (self.offset2 * self.offset_scale2)
+    """Updates plots for still mode"""
+    #xs_still = np.linspace(0, 2*np.pi * self.total_length/self.time_scale, 360*(max(self.waveform1.frequency, self.waveform2.frequency*self.freq_scale2)))/(2*np.pi)
+    self.xs = np.linspace(0, 2*np.pi * (self.total_length/self.time_scale) * self.time_unit, self.total_length)/(2*np.pi)
+    
+    self.ys1 = sin_from_waveform(self.xs, self.waveform1)
+    self.ys2 = sin_from_waveform(self.xs, self.waveform2)
 
-        ys1_still = add_rand_noise(self, ys1_still, self.noise_magnitude, self.noise)
-        ys2_still = add_rand_noise(self, ys2_still, self.noise_magnitude, self.noise)
+    self.ys1 = add_rand_noise(self, self.ys1, self.noise_magnitude, self.xs, self.noise, self.unoise)
+    self.ys2 = add_rand_noise(self, self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
+    self.ysp = self.ys2 * self.ys2
 
-        self.plotcurve1.setData(xs_still, ys1_still, pen=self.color1, name="AD1")
-        self.plotcurve2.setData(xs_still, ys2_still, pen=self.color2, name="AD2")
-        self.powercurve1.setData(xs_still, ys1_still * ys2_still, pen='r', name="Power")
-        #self.update_labels()
-
-        update_label(self, np.average((ys1_still * ys2_still)))
+    self.plotcurve1.setData(self.xs, self.ys1, pen=self.waveform1.color, name="AD1")
+    self.plotcurve2.setData(self.xs, self.ys2, pen=self.waveform2.color, name="AD2")
+    if(self.show_power):
+        self.powercurve1.setData(self.xs, self.ysp, pen=self.colorp, name="Power")
+    else:
+        self.powercurve1.setData([],[])
+    if(self.show_filtered_power):
+        self.filtercurve.setData(self.xs, Filter.filter(self.ysp), pen=self.colorfp)
+    if(self.show_noise):
+        self.noisecurve.setData(self.xs, sin_from_waveform(self.xs, self.noiseform) + add_sin_wave(self.xs,amp=2*self.noiseform.amplitude, freq=2*self.noiseform.amplitude, phase=90), pen=self.noiseform.color)
+    else:
+        self.noisecurve.setData([],[])
+    update_label(self, np.average(self.ysp))
         
 
 def update_label(self, pwr):
@@ -92,41 +89,75 @@ def update_label(self, pwr):
     Arguments:
         pwr {[float array]} -- [Power array read by the update function]
     """
-    reactive_power = (((self.amplitude1+self.offset1)*(self.amplitude2+self.offset2)))/2 * np.sin(2*(self.phase2 - self.phase1)*np.pi/360)
+    reactive_power = (((self.waveform1.amplitude+self.waveform1.offset)*(self.waveform2.amplitude+self.waveform2.offset)))/2 * np.sin(2*(self.waveform2.phase - self.waveform1.phase)*np.pi/360)
     apparent_power = np.sqrt((pwr * pwr) + (reactive_power * reactive_power))
-    power_factor = np.cos((self.phase2 -self.phase1)*2*np.pi/360)
+    power_factor = np.cos((self.waveform2.phase - self.waveform1.phase)*2*np.pi/360)
     
     self.power_label.setText("Real Power = %.3f W" %(pwr)) 
     self.power_rms_label.setText("Power RMS = %.3f W" %(pwr * (1/math.sqrt(2))))
     self.reactive_power_label.setText("Reactive Power = %.3f VAr" %(reactive_power))
     self.apparent_power_label.setText("Apparent Power = %.3f VA" %(apparent_power))
     self.power_factor_label.setText("Power Factor = %.4f " %(power_factor))
-    """ Power Factor Labels and Circuit Type """
-    if((self.phase2 - self.phase1) == 0):
+    
+    # Power Factor Labels and Circuit Type 
+    if((self.waveform2.phase - self.waveform1.phase) == 0):
         self.lead_lag_label.setText("Unity")
         self.circuit_type.setText("Purely Resistive Circuit")
-    elif((self.phase2 - self.phase1) < 0):
+    elif((self.waveform2.phase - self.waveform1.phase) < 0):
         self.lead_lag_label.setText("Leading")
         self.circuit_type.setText("Capacitive Circuit")
-    elif((self.phase2 - self.phase1) > 0):
+    elif((self.waveform2.phase - self.waveform1.phase) > 0):
         self.lead_lag_label.setText("Lagging")
         self.circuit_type.setText("Inductive Circuit")
 
-def add_rand_noise(self, arr, magnitude, switch=True):
+def add_rand_noise(self, arr, magnitude, x, switchn=True, switchu=True):
     """Adds random noise using np.random
     
     Arguments:
         arr {float array} -- The array to add noise to
         magnitude {float} -- The range of random numbers
+        x {float array} -- The x range for the uniform noise
 
     Keyword Arguments:
-        switch {boolean} -- Set to true if you want to add noise
+        switchn {boolean} -- Set to true if you want to add noise
     
     Returns:
         [float array] -- Returns new array
     """
-    if switch:
-        retval = arr + (np.random.rand(len(arr)) * magnitude) - magnitude/2
-        return retval
-    else:
-        return arr
+    #x = np.linspace(0, 1, len(arr))
+    retval = arr
+    if switchn:
+        retval += (np.random.rand(len(arr)) * magnitude) - magnitude/2# + add_sin_wave(x, 1, 1, 2, 1, 0)
+    if switchu:
+        retval += sin_from_waveform(x, self.noiseform)#add_sin_wave(x, self.noiseform.amplitude/1000000.0, 1, self.noiseform.frequency, 1, 0)
+        retval += add_sin_wave(x,amp=2*self.noiseform.amplitude, freq=2*self.noiseform.amplitude, phase=90)
+    return retval
+    
+
+def add_sin_wave(x, amp=1, amp_scl=1, freq=1, freq_scl=1, offset=0, offset_scl=1, phase=0):
+    """Adds a sin wave as uniform noise
+    
+    Arguments:
+        x {array} -- x-axis to create waveform
+        amp {float} -- amplitude of wave
+        amp_scl {float} -- scaling units of amplitude
+        freq {float} -- frequency of wave
+        freq_scl {float} -- scaling units of frequency
+        phase {float} -- phase angle in degrees from 0
+    
+    Returns:
+        float array -- returns the sin wave from the function
+    """
+    return amp * amp_scl * np.sin(2*np.pi * freq * freq_scl * x + (2*phase*np.pi/360)) + (offset * offset_scl)
+
+def sin_from_waveform(x, waveform_object):
+    """Creates a sin wave from the Waveform object
+    
+    Arguments:
+        x {float array} -- Array for the x-axis
+        waveform_object {Waveform} -- Waveform object being used
+    
+    Returns:
+        float array -- An array with the sin wave data that goes with given x
+    """
+    return add_sin_wave(x, waveform_object.amplitude, waveform_object.amp_scale, waveform_object.frequency, waveform_object.freq_scale, waveform_object.offset, waveform_object.offset_scale, waveform_object.phase)
