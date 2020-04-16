@@ -31,22 +31,25 @@ class Plotter(QtGui.QWidget):
         self.show_noise = False
         self.noise_magnitude = .01
 
-        self.waveform1 = waveform.Waveform("Current", color='g')
-        self.waveform2 = waveform.Waveform("Voltage", color='w')
-        self.noiseform = waveform.Waveform("Uniform Noise", amplitude = .5, frequency=10, color='b')
+        self.waveform1 = waveform.Waveform("Current", amplitude=10.0, frequency=10,color='g')
+        self.waveform2 = waveform.Waveform("Voltage", amplitude=15.0, frequency=10, color='w')
+        self.noiseform = waveform.Waveform("Uniform Noise", amplitude = 1, frequency=100.0, color='b')
 
         # Power Waveform information
         self.show_power = True
         self.colorp = 'r'
         self.show_filtered_power = True
         self.colorfp = 'y'
+        self.cutoff = 20.0
+        self.order = 2
 
         # All the needed arrays for graphing
         self.xs = np.zeros(self.total_length)
         self.ys1 = np.zeros(self.total_length)
         self.ys2 = np.zeros(self.total_length)
         self.ysp = np.zeros(self.total_length)
-        
+        self.ysf = np.zeros(self.total_length)
+
         self.init_ui()                              # Initializes the UI
         self.qt_connections()                       # Connects the buttons to their functions
 
@@ -134,8 +137,26 @@ class Plotter(QtGui.QWidget):
         butt_win2.addRow(self.show_power_button)
 
         self.color_boxp = QtGui.QComboBox()
-        self.color_boxp.addItems(["Red", "Blue", "Green", "White"])
+        self.color_boxp.addItems(["Red", "Blue", "Green", "Yellow", "White"])
         butt_win2.addRow(self.color_boxp)
+
+        # Filter
+        self.show_power_buttonf = QtGui.QPushButton("Filtered Power")
+        self.show_power_buttonf.setCheckable(True)
+        self.show_power_buttonf.toggle()
+        butt_win1.addRow(self.show_power_buttonf)
+
+        self.color_boxfp = QtGui.QComboBox()
+        self.color_boxfp.addItems(["Red", "Blue", "Green", "Yellow", "White"])
+        self.color_boxfp.setCurrentIndex(3)
+        butt_win1.addRow(self.color_boxfp)
+
+        self.edit_cutoff_box = QtGui.QDoubleSpinBox()
+        self.edit_cutoff_box.setValue(self.cutoff)
+        self.edit_cutoff_box.setGeometry(1,1,1,1) 
+        self.edit_cutoff_box.setSingleStep(.1)
+        self.edit_cutoff_box.setRange(0, 1000)
+        butt_win1.addRow("Cutoff", self.edit_cutoff_box)
 
         # Power Labels
         self.power_label = QtGui.QLabel()
@@ -143,6 +164,9 @@ class Plotter(QtGui.QWidget):
 
         self.power_rms_label = QtGui.QLabel()
         butt_win2.addRow(self.power_rms_label)
+
+        self.filtered_power_label = QtGui.QLabel()
+        butt_win2.addRow(self.filtered_power_label)
 
         self.reactive_power_label = QtGui.QLabel()
         butt_win2.addRow(self.reactive_power_label)
@@ -218,6 +242,9 @@ class Plotter(QtGui.QWidget):
         self.pause_button.clicked.connect(self.pause_toggle)
         self.show_power_button.clicked.connect(self.power_toggle)
         self.color_boxp.currentIndexChanged.connect(self.edit_colorp)
+        self.show_power_buttonf.clicked.connect(self.filter_toggle)
+        self.color_boxfp.currentIndexChanged.connect(self.edit_colorfp)
+        self.edit_cutoff_box.valueChanged.connect(self.edit_cutoff)
 
         # Noise
         self.noise_button.clicked.connect(self.noise_toggle)
@@ -283,8 +310,30 @@ class Plotter(QtGui.QWidget):
             self.colorp = 'b'
         elif i == 2:
             self.colorp = 'g'
+        elif i == 3:
+            self.colorp = 'y'
         else:
             self.colorp = 'w'
+
+    def filter_toggle(self):
+        self.show_filtered_power = not self.show_filtered_power
+
+    def edit_colorfp(self, i):
+        """Edits color"""
+        if i == 0:
+            self.colorfp = 'r'
+        elif i == 1:
+            self.colorfp = 'b'
+        elif i == 2:
+            self.colorfp = 'g'
+        elif i == 3:
+            self.colorfp = 'y'
+        else:
+            self.colorfp = 'w'
+
+    def edit_cutoff(self):
+        if(self.edit_time_box.value() > 0):
+            self.cutoff = self.edit_cutoff_box.value()
 
     def noise_toggle(self):
         """Toggle random noise"""

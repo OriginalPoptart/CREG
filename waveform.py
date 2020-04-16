@@ -87,7 +87,7 @@ class Waveform:
 
         # Color
         self.color_box = QtGui.QComboBox()
-        self.color_box.addItems(["Red", "Blue", "Green", "White"])
+        self.color_box.addItems(["Red", "Blue", "Green", "Yellow", "White"])
         if(self.color == 'r'):
             self.color_box.setCurrentIndex(0)
         elif(self.color == 'b'):
@@ -174,5 +174,7 @@ class Waveform:
             self.color = 'b'
         elif i == 2:
             self.color = 'g'
+        elif i == 3:
+            self.color = 'y'
         else:
             self.color = 'w'

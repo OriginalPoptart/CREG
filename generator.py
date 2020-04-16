@@ -33,23 +33,15 @@ def update(self):
                 self.xs[self.total_length-self.chunk_size:] = temp
                 self.ys1[self.total_length-self.chunk_size:] = sin_from_waveform(temp, self.waveform1)#temp, self.waveform1.amplitude, self.waveform1.amp_scale, self.waveform1.frequency, self.freq_scale1, self.offset1, self.offset_scale1, self.waveform1.phase)
                 self.ys2[self.total_length-self.chunk_size:] = sin_from_waveform(temp, self.waveform2)#add_sin_wave(temp, self.waveform2.amplitude, self.waveform2.amp_scale, self.waveform2.frequency, self.freq_scale2, self.offset2, self.offset_scale2, self.waveform2.phase)
-                self.ysp[self.total_length-self.chunk_size:] = self.ys1[self.total_length-self.chunk_size:] * self.ys2[self.total_length-self.chunk_size:]
 
                 self.ys1[self.total_length - self.chunk_size:] = add_rand_noise(self, self.ys1[self.total_length - self.chunk_size:], self.noise_magnitude, temp, self.noise, self.unoise)
                 self.ys2[self.total_length - self.chunk_size:] = add_rand_noise(self, self.ys2[self.total_length - self.chunk_size:], self.noise_magnitude, temp, self.noise, self.unoise)
+                self.ysp[self.total_length-self.chunk_size:] = self.ys1[self.total_length-self.chunk_size:] * self.ys2[self.total_length-self.chunk_size:]
+                self.ysf = Filter.filter(self.ysp, self.time_scale, self.cutoff, 2)
 
                 # Adds the data to the graphs
-                self.plotcurve1.setData(self.xs, self.ys1, pen=self.waveform1.color, name="AD1")
-                self.plotcurve2.setData(self.xs, self.ys2, pen=self.waveform2.color, name="AD2")
-                if(self.show_power):
-                    self.powercurve1.setData(self.xs, self.ys1 * self.ys2, pen=self.colorp, name="Power")
-                else:
-                    self.powercurve1.setData([],[])
-                if(self.show_noise):
-                    self.noisecurve.setData(self.xs, sin_from_waveform(self.xs, self.noiseform) + add_sin_wave(self.xs,amp=2*self.noiseform.amplitude, freq=2*self.noiseform.amplitude, phase=90), pen=self.noiseform.color)
-                else:
-                    self.noisecurve.setData([],[])
-                update_label(self, np.average((self.ys1 * self.ys2)))
+                updatePlots(self)
+                update_label(self, self.ysp)
             #else:
                 #temp = 0
                 #print("Waiting...")
@@ -67,34 +59,27 @@ def update_still(self):
     self.ys1 = add_rand_noise(self, self.ys1, self.noise_magnitude, self.xs, self.noise, self.unoise)
     self.ys2 = add_rand_noise(self, self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
     self.ysp = self.ys2 * self.ys2
+    self.ysf = Filter.filter(self.ysp, self.time_scale, self.cutoff, self.order)
 
-    self.plotcurve1.setData(self.xs, self.ys1, pen=self.waveform1.color, name="AD1")
-    self.plotcurve2.setData(self.xs, self.ys2, pen=self.waveform2.color, name="AD2")
-    if(self.show_power):
-        self.powercurve1.setData(self.xs, self.ysp, pen=self.colorp, name="Power")
-    else:
-        self.powercurve1.setData([],[])
-    if(self.show_filtered_power):
-        self.filtercurve.setData(self.xs, Filter.filter(self.ysp), pen=self.colorfp)
-    if(self.show_noise):
-        self.noisecurve.setData(self.xs, sin_from_waveform(self.xs, self.noiseform) + add_sin_wave(self.xs,amp=2*self.noiseform.amplitude, freq=2*self.noiseform.amplitude, phase=90), pen=self.noiseform.color)
-    else:
-        self.noisecurve.setData([],[])
-    update_label(self, np.average(self.ysp))
+    updatePlots(self)
+    update_label(self, self.ysp)
         
 
-def update_label(self, pwr):
-    """Updates the labels for power
+def update_label(self, rp):
+    """Updates the labels for rp
     
     Arguments:
-        pwr {[float array]} -- [Power array read by the update function]
+        rp {[float array]} -- [Power array read by the update function]
     """
+    pwr = np.average(rp)
+    fp = np.average(self.ysf)
     reactive_power = (((self.waveform1.amplitude+self.waveform1.offset)*(self.waveform2.amplitude+self.waveform2.offset)))/2 * np.sin(2*(self.waveform2.phase - self.waveform1.phase)*np.pi/360)
     apparent_power = np.sqrt((pwr * pwr) + (reactive_power * reactive_power))
     power_factor = np.cos((self.waveform2.phase - self.waveform1.phase)*2*np.pi/360)
     
     self.power_label.setText("Real Power = %.3f W" %(pwr)) 
     self.power_rms_label.setText("Power RMS = %.3f W" %(pwr * (1/math.sqrt(2))))
+    self.filtered_power_label.setText("Filtered = %.3f" %(fp))
     self.reactive_power_label.setText("Reactive Power = %.3f VAr" %(reactive_power))
     self.apparent_power_label.setText("Apparent Power = %.3f VA" %(apparent_power))
     self.power_factor_label.setText("Power Factor = %.4f " %(power_factor))
@@ -129,8 +114,8 @@ def add_rand_noise(self, arr, magnitude, x, switchn=True, switchu=True):
     if switchn:
         retval += (np.random.rand(len(arr)) * magnitude) - magnitude/2# + add_sin_wave(x, 1, 1, 2, 1, 0)
     if switchu:
-        retval += sin_from_waveform(x, self.noiseform)#add_sin_wave(x, self.noiseform.amplitude/1000000.0, 1, self.noiseform.frequency, 1, 0)
-        retval += add_sin_wave(x,amp=2*self.noiseform.amplitude, freq=2*self.noiseform.amplitude, phase=90)
+        noise = sin_from_waveform(x, self.noiseform)# + add_sin_wave(x,amp=.5*self.noiseform.amplitude, freq=2*self.noiseform.amplitude, phase=90)
+        retval += noise
     return retval
     
 
@@ -161,3 +146,19 @@ def sin_from_waveform(x, waveform_object):
         float array -- An array with the sin wave data that goes with given x
     """
     return add_sin_wave(x, waveform_object.amplitude, waveform_object.amp_scale, waveform_object.frequency, waveform_object.freq_scale, waveform_object.offset, waveform_object.offset_scale, waveform_object.phase)
+
+def updatePlots(self):
+    self.plotcurve1.setData(self.xs, self.ys1, pen=self.waveform1.color, name="AD1")
+    self.plotcurve2.setData(self.xs, self.ys2, pen=self.waveform2.color, name="AD2")
+    if(self.show_power):
+        self.powercurve1.setData(self.xs, self.ysp, pen=self.colorp, name="Power")
+    else:
+        self.powercurve1.setData([],[])
+    if(self.show_filtered_power):
+        self.filtercurve.setData(self.xs, self.ysf, pen=self.colorfp)
+    else:
+        self.filtercurve.setData([],[])
+    if(self.show_noise):
+        self.noisecurve.setData(self.xs, add_rand_noise(self, np.zeros(len(self.xs)), self.noise_magnitude, self.xs, False), pen=self.noiseform.color)
+    else:
+        self.noisecurve.setData([],[])
