@@ -37,7 +37,7 @@ def update(self):
                 self.ys1[self.total_length - self.chunk_size:] = add_rand_noise(self, self.ys1[self.total_length - self.chunk_size:], self.noise_magnitude, temp, self.noise, self.unoise)
                 self.ys2[self.total_length - self.chunk_size:] = add_rand_noise(self, self.ys2[self.total_length - self.chunk_size:], self.noise_magnitude, temp, self.noise, self.unoise)
                 self.ysp[self.total_length-self.chunk_size:] = self.ys1[self.total_length-self.chunk_size:] * self.ys2[self.total_length-self.chunk_size:]
-                self.ysf = Filter.filter(self.ysp, self.time_scale, self.cutoff, 2)
+                self.ysf = Filter.filter(self.ysp, self.time_scale, self.cutoff, self.order, self.passes)
 
                 # Adds the data to the graphs
                 updatePlots(self)
@@ -56,10 +56,11 @@ def update_still(self):
     self.ys1 = sin_from_waveform(self.xs, self.waveform1)
     self.ys2 = sin_from_waveform(self.xs, self.waveform2)
 
-    self.ys1 = add_rand_noise(self, self.ys1, self.noise_magnitude, self.xs, self.noise, self.unoise)
-    self.ys2 = add_rand_noise(self, self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
-    self.ysp = self.ys2 * self.ys2
-    self.ysf = Filter.filter(self.ysp, self.time_scale, self.cutoff, self.order)
+    #self.ys1 = add_rand_noise(self, self.ys1, self.noise_magnitude, self.xs, self.noise, self.unoise)
+    #self.ys2 = add_rand_noise(self, self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
+    self.ysp = add_rand_noise(self, self.ys1 * self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
+    
+    self.ysf = Filter.filter(self.ysp, self.time_scale, self.cutoff, self.order, self.passes)
 
     updatePlots(self)
     update_label(self, self.ysp)
@@ -114,7 +115,7 @@ def add_rand_noise(self, arr, magnitude, x, switchn=True, switchu=True):
     if switchn:
         retval += (np.random.rand(len(arr)) * magnitude) - magnitude/2# + add_sin_wave(x, 1, 1, 2, 1, 0)
     if switchu:
-        noise = sin_from_waveform(x, self.noiseform)# + add_sin_wave(x,amp=.5*self.noiseform.amplitude, freq=2*self.noiseform.amplitude, phase=90)
+        noise = sin_from_waveform(x, self.noiseform) + add_sin_wave(x, freq=3*self.noiseform.frequency, phase=90)
         retval += noise
     return retval
     

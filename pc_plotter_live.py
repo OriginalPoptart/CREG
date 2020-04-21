@@ -26,22 +26,23 @@ class Plotter(QtGui.QWidget):
         # Booleans for still, pause and noise
         self.still = True
         self.pause = False
-        self.noise = False
+        self.noise = True
         self.unoise = False
         self.show_noise = False
-        self.noise_magnitude = .01
+        self.noise_magnitude = 0
 
-        self.waveform1 = waveform.Waveform("Current", amplitude=10.0, frequency=10,color='g')
-        self.waveform2 = waveform.Waveform("Voltage", amplitude=15.0, frequency=10, color='w')
-        self.noiseform = waveform.Waveform("Uniform Noise", amplitude = 1, frequency=100.0, color='b')
+        self.waveform1 = waveform.Waveform("Current", amplitude=1.0, frequency=5,color='g')
+        self.waveform2 = waveform.Waveform("Voltage", amplitude=1.0, frequency=5, color='w', phase=90)
+        self.noiseform = waveform.Waveform("Uniform Noise", amplitude = .5, frequency=20.0, color='b')
 
         # Power Waveform information
         self.show_power = True
         self.colorp = 'r'
         self.show_filtered_power = True
         self.colorfp = 'y'
-        self.cutoff = 20.0
+        self.cutoff = 15.0
         self.order = 2
+        self.passes = 2
 
         # All the needed arrays for graphing
         self.xs = np.zeros(self.total_length)
@@ -101,8 +102,11 @@ class Plotter(QtGui.QWidget):
         # ** Column 2 **
         # Label
         column2 = QtGui.QBoxLayout(QtGui.QBoxLayout.TopToBottom)
-        self.label3 = QtGui.QLabel("Sampling/Power")
+        self.label3 = QtGui.QLabel("Sampling")
         butt_win1.addRow(self.label3)
+
+        self.labelp = QtGui.QLabel("Power")
+        butt_win2.addRow(self.labelp)
 
         # Sample Time
         self.edit_time_box = QtGui.QDoubleSpinBox()
@@ -137,26 +141,8 @@ class Plotter(QtGui.QWidget):
         butt_win2.addRow(self.show_power_button)
 
         self.color_boxp = QtGui.QComboBox()
-        self.color_boxp.addItems(["Red", "Blue", "Green", "Yellow", "White"])
+        self.color_boxp.addItems(["Red", "Blue", "Green", "Yellow", "White", "None"])
         butt_win2.addRow(self.color_boxp)
-
-        # Filter
-        self.show_power_buttonf = QtGui.QPushButton("Filtered Power")
-        self.show_power_buttonf.setCheckable(True)
-        self.show_power_buttonf.toggle()
-        butt_win1.addRow(self.show_power_buttonf)
-
-        self.color_boxfp = QtGui.QComboBox()
-        self.color_boxfp.addItems(["Red", "Blue", "Green", "Yellow", "White"])
-        self.color_boxfp.setCurrentIndex(3)
-        butt_win1.addRow(self.color_boxfp)
-
-        self.edit_cutoff_box = QtGui.QDoubleSpinBox()
-        self.edit_cutoff_box.setValue(self.cutoff)
-        self.edit_cutoff_box.setGeometry(1,1,1,1) 
-        self.edit_cutoff_box.setSingleStep(.1)
-        self.edit_cutoff_box.setRange(0, 1000)
-        butt_win1.addRow("Cutoff", self.edit_cutoff_box)
 
         # Power Labels
         self.power_label = QtGui.QLabel()
@@ -190,12 +176,8 @@ class Plotter(QtGui.QWidget):
         # Column 3
         # Noise
         column3 = QtGui.QBoxLayout(QtGui.QBoxLayout.TopToBottom)
-        self.label4 = QtGui.QLabel("Noise")
+        self.label4 = QtGui.QLabel("Noise/Filter")
         butt_win3.addRow(self.label4)
-
-        self.noise_button = QtGui.QPushButton("Random Noise")
-        self.noise_button.setCheckable(True)
-        butt_win3.addRow(self.noise_button)
 
         self.rand_noise_box = QtGui.QDoubleSpinBox()
         self.rand_noise_box.setValue(self.noise_magnitude)
@@ -212,6 +194,36 @@ class Plotter(QtGui.QWidget):
         self.show_noise_button = QtGui.QPushButton("Show Noise")
         self.show_noise_button.setCheckable(True)
         butt_win3.addRow(self.show_noise_button)
+
+        # Filter
+        self.show_power_buttonf = QtGui.QPushButton("Filtered Power")
+        self.show_power_buttonf.setCheckable(True)
+        self.show_power_buttonf.toggle()
+        butt_win3.addRow(self.show_power_buttonf)
+
+        self.color_boxfp = QtGui.QComboBox()
+        self.color_boxfp.addItems(["Red", "Blue", "Green", "Yellow", "White", "None"])
+        self.color_boxfp.setCurrentIndex(3)
+        butt_win3.addRow(self.color_boxfp)
+
+        self.edit_cutoff_box = QtGui.QDoubleSpinBox()
+        self.edit_cutoff_box.setValue(self.cutoff)
+        self.edit_cutoff_box.setGeometry(1,1,1,1) 
+        self.edit_cutoff_box.setSingleStep(.1)
+        self.edit_cutoff_box.setRange(0, 1000)
+        butt_win3.addRow("Cutoff", self.edit_cutoff_box)
+
+        self.edit_order_box = QtGui.QSpinBox()
+        self.edit_order_box.setValue(self.order)
+        self.edit_order_box.setGeometry(1,1,1,1) 
+        self.edit_order_box.setRange(0, 1000)
+        butt_win3.addRow("Order", self.edit_order_box)
+
+        self.edit_pass_box = QtGui.QSpinBox()
+        self.edit_pass_box.setValue(self.order)
+        self.edit_pass_box.setGeometry(1,1,1,1) 
+        self.edit_pass_box.setRange(0, 1000)
+        butt_win3.addRow("Filter Repetitions", self.edit_pass_box)
 
         column3.addLayout(butt_win3)
         column3.addLayout(self.noiseform.butt_win)
@@ -240,17 +252,22 @@ class Plotter(QtGui.QWidget):
         self.save_button.clicked.connect(self.saveToFile)
         self.still_button.clicked.connect(self.still_toggle)
         self.pause_button.clicked.connect(self.pause_toggle)
+
+        #Power
         self.show_power_button.clicked.connect(self.power_toggle)
         self.color_boxp.currentIndexChanged.connect(self.edit_colorp)
         self.show_power_buttonf.clicked.connect(self.filter_toggle)
-        self.color_boxfp.currentIndexChanged.connect(self.edit_colorfp)
-        self.edit_cutoff_box.valueChanged.connect(self.edit_cutoff)
 
         # Noise
-        self.noise_button.clicked.connect(self.noise_toggle)
         self.rand_noise_box.valueChanged.connect(self.edit_noise)
         self.noise_button2.clicked.connect(self.noise_toggle2)
         self.show_noise_button.clicked.connect(self.show_noise_toggle)
+
+        # Filter
+        self.color_boxfp.currentIndexChanged.connect(self.edit_colorfp)
+        self.edit_cutoff_box.valueChanged.connect(self.edit_cutoff)
+        self.edit_order_box.valueChanged.connect(self.edit_order)
+        self.edit_pass_box.valueChanged.connect(self.edit_passes)
 
         print("Buttons Complete!")
         
@@ -312,8 +329,10 @@ class Plotter(QtGui.QWidget):
             self.colorp = 'g'
         elif i == 3:
             self.colorp = 'y'
-        else:
+        elif i == 4:
             self.colorp = 'w'
+        else:
+            self.colorp = None
 
     def filter_toggle(self):
         self.show_filtered_power = not self.show_filtered_power
@@ -328,12 +347,22 @@ class Plotter(QtGui.QWidget):
             self.colorfp = 'g'
         elif i == 3:
             self.colorfp = 'y'
-        else:
+        elif i == 4:
             self.colorfp = 'w'
+        else:
+            self.colorfp = None
 
     def edit_cutoff(self):
-        if(self.edit_time_box.value() > 0):
+        if(self.edit_cutoff_box.value() > 0):
             self.cutoff = self.edit_cutoff_box.value()
+
+    def edit_order(self):
+        if(self.edit_order_box.value() > 0):
+            self.order = self.edit_order_box.value()
+
+    def edit_passes(self):
+        if(self.edit_pass_box.value() > 0):
+            self.passes = self.edit_pass_box.value()
 
     def noise_toggle(self):
         """Toggle random noise"""

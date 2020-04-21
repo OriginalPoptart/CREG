@@ -87,15 +87,19 @@ class Waveform:
 
         # Color
         self.color_box = QtGui.QComboBox()
-        self.color_box.addItems(["Red", "Blue", "Green", "Yellow", "White"])
+        self.color_box.addItems(["Red", "Blue", "Green", "Yellow", "White", "None"])
         if(self.color == 'r'):
             self.color_box.setCurrentIndex(0)
         elif(self.color == 'b'):
             self.color_box.setCurrentIndex(1)
         elif(self.color == 'g'):
             self.color_box.setCurrentIndex(2)
-        else:
+        elif(self.color == 'y'):
             self.color_box.setCurrentIndex(3)
+        elif(self.color == 'w'):
+            self.color_box.setCurrentIndex(4)
+        else:
+            self.color_box.serCurrentIndex(5)
         self.butt_win.addRow("Color", self.color_box)
 
         #self.space_label = QtGui.QLabel(" ")
@@ -176,5 +180,7 @@ class Waveform:
             self.color = 'g'
         elif i == 3:
             self.color = 'y'
-        else:
+        elif i == 4:
             self.color = 'w'
+        else:
+            self.color = None
