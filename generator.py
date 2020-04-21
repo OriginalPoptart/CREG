@@ -56,9 +56,9 @@ def update_still(self):
     self.ys1 = sin_from_waveform(self.xs, self.waveform1)
     self.ys2 = sin_from_waveform(self.xs, self.waveform2)
 
-    #self.ys1 = add_rand_noise(self, self.ys1, self.noise_magnitude, self.xs, self.noise, self.unoise)
-    #self.ys2 = add_rand_noise(self, self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
-    self.ysp = add_rand_noise(self, self.ys1 * self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
+    self.ys1 = add_rand_noise(self, self.ys1, self.noise_magnitude, self.xs, self.noise, self.unoise)
+    self.ys2 = add_rand_noise(self, self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
+    self.ysp = self.ys1 * self.ys2 #add_rand_noise(self, self.ys1 * self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
     
     self.ysf = Filter.filter(self.ysp, self.time_scale, self.cutoff, self.order, self.passes)
 
