@@ -58,13 +58,16 @@ def update_still(self):
 
     self.ys1 = add_rand_noise(self, self.ys1, self.noise_magnitude, self.xs, self.noise, self.unoise)
     self.ys2 = add_rand_noise(self, self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
-    self.ysp = self.ys1 * self.ys2 #add_rand_noise(self, self.ys1 * self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
-    
+    #self.ysp = add_rand_noise(self, self.ys1 * self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
+    self.ysp = self.ys1 * self.ys2
     self.ysf = Filter.filter(self.ysp, self.time_scale, self.cutoff, self.order, self.passes)
 
     updatePlots(self)
     update_label(self, self.ysp)
+
+    #updatePlots2(self)
         
+#def update_waveforms(self)
 
 def update_label(self, rp):
     """Updates the labels for rp
@@ -73,7 +76,7 @@ def update_label(self, rp):
         rp {[float array]} -- [Power array read by the update function]
     """
     pwr = np.average(rp)
-    fp = np.average(self.ysf)
+    fp = np.average(self.yf)
     reactive_power = (((self.waveform1.amplitude+self.waveform1.offset)*(self.waveform2.amplitude+self.waveform2.offset)))/2 * np.sin(2*(self.waveform2.phase - self.waveform1.phase)*np.pi/360)
     apparent_power = np.sqrt((pwr * pwr) + (reactive_power * reactive_power))
     power_factor = np.cos((self.waveform2.phase - self.waveform1.phase)*2*np.pi/360)
@@ -115,7 +118,7 @@ def add_rand_noise(self, arr, magnitude, x, switchn=True, switchu=True):
     if switchn:
         retval += (np.random.rand(len(arr)) * magnitude) - magnitude/2# + add_sin_wave(x, 1, 1, 2, 1, 0)
     if switchu:
-        noise = sin_from_waveform(x, self.noiseform) + add_sin_wave(x, freq=3*self.noiseform.frequency, phase=90)
+        noise = self.noiseform.y#[self.st*self.ms_scale:self.et*self.ms_scale] #+ sin_from_waveform(x, self.noiseform) + add_sin_wave(x, amp=self.noiseform.amplitude, freq=2*self.noiseform.frequency, amp_scl=self.noiseform.amp_scale, freq_scl=self.noiseform.freq_scale)
         retval += noise
     return retval
     
@@ -146,7 +149,7 @@ def sin_from_waveform(x, waveform_object):
     Returns:
         float array -- An array with the sin wave data that goes with given x
     """
-    return add_sin_wave(x, waveform_object.amplitude, waveform_object.amp_scale, waveform_object.frequency, waveform_object.freq_scale, waveform_object.offset, waveform_object.offset_scale, waveform_object.phase)
+    return add_sin_wave(x, waveform_object.amplitude, waveform_object.amp_scale, waveform_object.frequency/1000, waveform_object.freq_scale, waveform_object.offset, waveform_object.offset_scale, waveform_object.phase)
 
 def updatePlots(self):
     self.plotcurve1.setData(self.xs, self.ys1, pen=self.waveform1.color, name="AD1")
@@ -163,3 +166,47 @@ def updatePlots(self):
         self.noisecurve.setData(self.xs, add_rand_noise(self, np.zeros(len(self.xs)), self.noise_magnitude, self.xs, False), pen=self.noiseform.color)
     else:
         self.noisecurve.setData([],[])
+
+def updatePlots2(self, x, ys1, ys2):
+
+    y1, y2 = applyNoise(self, ys1, ys2)
+    getPower(self, y1, y2)
+
+    self.plotcurve1.setData(x[(self.st*self.ms_scale):(self.et*self.ms_scale)], y1[(self.st*self.ms_scale):(self.et*self.ms_scale)], pen=self.waveform1.color, name="AD1")
+    self.plotcurve2.setData(x[(self.st*self.ms_scale):(self.et*self.ms_scale)], y2[(self.st*self.ms_scale):(self.et*self.ms_scale)], pen=self.waveform2.color, name="AD2")
+    if(self.show_power):
+        self.powercurve1.setData(self.x[(self.st*self.ms_scale):(self.et*self.ms_scale)], self.yp[(self.st*self.ms_scale):(self.et*self.ms_scale)], pen=self.colorp, name="Power")
+    else:
+        self.powercurve1.setData([],[])
+    if(self.show_filtered_power):
+        self.filtercurve.setData(self.x[(self.st*self.ms_scale):(self.et*self.ms_scale)], self.yf[(self.st*self.ms_scale):(self.et*self.ms_scale)], pen=self.colorfp)
+    else:
+        self.filtercurve.setData([],[])
+    if(self.show_noise):
+        self.noisecurve.setData(x[(self.st*self.ms_scale):(self.et*self.ms_scale)], self.noiseform.y[(self.st*self.ms_scale):(self.et*self.ms_scale)], pen=self.noiseform.color)
+    else:
+        self.noisecurve.setData([],[])
+
+    update_label(self, self.yp)
+
+    if(not self.pause):
+        #self.st += self.speed
+        #self.et += self.speed
+        if(self.et < self.total_time):
+            self.edit_time_box.setValue(self.st+self.speed)
+            self.edit_time_box2.setValue(self.et+self.speed)
+        else:
+            self.pause = True
+            self.pause_button.toggle()
+
+def getPower(self, y1, y2):
+    self.yp = y1 * y2
+    self.yf = Filter.filter(self.yp, self.ms_scale*1000, self.cutoff, self.order, self.passes)
+
+def applyNoise(self, y1, y2):
+
+    new_y1 = y1
+    new_y1 = add_rand_noise(self, new_y1, self.noise_magnitude, self.x, self.noise, self.unoise)
+    new_y2 = y2
+    new_y2 = add_rand_noise(self, new_y2, self.noise_magnitude, self.x, self.noise, self.unoise)
+    return new_y1, new_y2

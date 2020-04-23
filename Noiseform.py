@@ -7,9 +7,10 @@ import sys
 import math
 import pc_plotter_live
 import generator
+import waveform
 
-class Waveform:
-    def __init__(self, name, amplitude=1.0, amp_scale=1.0, frequency=1.0, freq_scale=1.0, offset=0.0, offset_scale=1.0, phase=0.0, color='w', time=5000, samp_per_msec=10):
+class Noiseform:
+    def __init__(self, name, amplitude=1.0, amp_scale=1.0, frequency=1.0, freq_scale=1.0, phase=0.0, color='w', time=5000, samp_per_msec=10):
         """Initializes Waveform object
         
         Arguments:
@@ -20,8 +21,6 @@ class Waveform:
             amp_scale {float} -- Units of amplitude (default: {1.0})
             frequency {float} -- Frequency of the waveform (default: {1.0})
             freq_scale {float} -- Units of frequency (default: {1.0})
-            offset {float} -- Offset of waveform (default: {0.0})
-            offset_scale {float} -- Units of offset (default: {1.0})
             phase {float} -- Phase angle in degrees (default: {0.0})
             color {str} -- Color of the waveform (default: {'w'})
             time {int} -- Length of sample time in ms
@@ -32,16 +31,16 @@ class Waveform:
         self.amp_scale = amp_scale
         self.frequency = frequency
         self.freq_scale = freq_scale
-        self.offset = offset
-        self.offset_scale = offset_scale
         self.phase = phase
         self.color = color
         self.time = time
         self.samp_per_msec = samp_per_msec
+        self.harmonic = 2
 
         #self.plotcurve = pg.PlotCurveItem()
         self.x = np.linspace(0, time, time*samp_per_msec)
-        self.y = generator.sin_from_waveform(self.x, self)
+        self.y = self.amplitude * self.amp_scale * np.sin(2*np.pi * self.frequency/1000 * self.freq_scale * self.x + (2*self.phase*np.pi/360))
+        self.y += self.amplitude * self.amp_scale * np.sin(2*np.pi * self.harmonic * self.frequency/1000 * self.freq_scale * self.x + (2*self.phase*np.pi/360))
 
         self.butt_win = QtGui.QFormLayout()
 
@@ -86,17 +85,11 @@ class Waveform:
         self.edit_phase_box.setWrapping(True)
         self.butt_win.addRow("Phase", self.edit_phase_box)
 
-        # Offset
-        self.edit_offset_box = QtGui.QDoubleSpinBox()
-        self.edit_offset_box.setValue(self.offset)
-        self.edit_offset_box.setGeometry(1,1,1,1) 
-        self.edit_offset_box.setSingleStep(.1)
-        self.edit_offset_box.setRange(-1000, 1000)
-        self.butt_win.addRow("Offset", self.edit_offset_box)
-
-        self.offset_unit_box = QtGui.QComboBox()
-        self.offset_unit_box.addItems(["V", "kV", "mV"])
-        self.butt_win.addRow(self.offset_unit_box)
+        self.edit_harmonic_box = QtGui.QSpinBox()
+        self.edit_harmonic_box.setMaximum(1000)
+        self.edit_harmonic_box.setValue(self.harmonic)
+        self.edit_harmonic_box.setGeometry(1,1,1,1) 
+        self.butt_win.addRow("Harmonic", self.edit_harmonic_box)
 
         # Color
         self.color_box = QtGui.QComboBox()
@@ -121,7 +114,9 @@ class Waveform:
         self.qt_connections()
 
     def set_data(self):
-        self.y = generator.sin_from_waveform(self.x, self)
+        #self.y = generator.sin_from_waveform(self.x, self) 
+        self.y = self.amplitude * self.amp_scale * np.sin(2*np.pi * self.frequency/1000 * self.freq_scale * self.x + (2*self.phase*np.pi/360))
+        self.y += self.amplitude * self.amp_scale * np.sin(2*np.pi * self.harmonic * self.frequency/1000 * self.freq_scale * self.x + (2*self.phase*np.pi/360))
 
     def qt_connections(self):
         """Connects the logic of the buttons to their respective functions"""
@@ -132,31 +127,30 @@ class Waveform:
         self.edit_amp_box.valueChanged.connect(self.edit_amp)
         self.amp_unit_box.currentIndexChanged.connect(self.amp_unit)
         self.edit_phase_box.valueChanged.connect(self.edit_phase)
-        self.edit_offset_box.valueChanged.connect(self.edit_offset)
-        self.offset_unit_box.currentIndexChanged.connect(self.offset_unit)
         self.color_box.currentIndexChanged.connect(self.edit_color)
+        self.edit_harmonic_box.valueChanged.connect(self.edit_harmonic)
 
     def edit_freq(self):
         """Edits frquency"""
         self.frequency = self.edit_freq_box.value()
-        #self.set_data()
+        self.set_data()
 
     def freq_unit(self, i):
         """Sets the units for frequency"""
         if i == 0:
-            self.freq_scale = 1
+            self.freq_scale = 1.0
         elif i == 1:
             self.freq_scale = 1000.0
         elif i == 2:
-            self.freq_scale = 1000000
+            self.freq_scale = 1000000.0
         else:
             self.freq_scale = 1
-        #self.set_data()
+        self.set_data()
 
     def edit_amp(self):
         """Edits amplitude"""
         self.amplitude = self.edit_amp_box.value()
-        #self.set_data()
+        self.set_data()
 
     def amp_unit(self, i):
         """Sets the units for amplitude"""
@@ -168,29 +162,17 @@ class Waveform:
             self.amp_scale = 0.001
         else:
             self.amp_scale = 1
-        #self.set_data()
+        self.set_data()
 
     def edit_phase(self):
         """Edits phase in degrees""" 
         self.phase = self.edit_phase_box.value()
-        #self.set_data()
+        self.set_data()
 
-    def edit_offset(self):
-        """Edits voltage offset"""
-        self.offset = self.edit_offset_box.value()
-        #self.set_data()
-
-    def offset_unit(self, i):
-        """Sets the units for offset"""
-        if i == 0:
-            self.offset_scale = 1
-        elif i == 1:
-            self.offset_scale = 1000
-        elif i == 2:
-            self.offset_scale = 0.001
-        else:
-            self.offset_scale = 1
-        #self.set_data()
+    def edit_harmonic(self):
+        """Edits harmonics"""
+        self.harmonic = self.edit_harmonic_box.value()
+        self.set_data()
 
     def edit_color(self, i):
         """Edits color"""

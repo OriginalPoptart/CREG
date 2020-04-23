@@ -7,6 +7,7 @@ import sys
 import math
 import generator
 import waveform
+import Noiseform
 
 class Plotter(QtGui.QWidget):
     def __init__(self):
@@ -15,11 +16,17 @@ class Plotter(QtGui.QWidget):
         print("Starting init")
         self.total_length = 10000                  # total sample size
         self.time = 1000                           # time of sample in ms
-        self.t = 0
         self.time_scale = 10000.0                  # samples per second, total time = total_length/time_scale
         self.chunk_size = 400
         self.time_unit = 1.0
         self.power = 0.0
+
+        self.total_time = 5000
+        self.ms_scale = 20
+        self.sample_size = self.total_time * self.ms_scale
+        self.st = 1000
+        self.et = 1100
+        self.speed = 1
 
         self.timer_thing = time.time()
 
@@ -31,18 +38,18 @@ class Plotter(QtGui.QWidget):
         self.show_noise = False
         self.noise_magnitude = 0
 
-        self.waveform1 = waveform.Waveform("Current", amplitude=1.0, frequency=5,color='g')
-        self.waveform2 = waveform.Waveform("Voltage", amplitude=1.0, frequency=5, color='w', phase=90)
-        self.noiseform = waveform.Waveform("Uniform Noise", amplitude = .5, frequency=20.0, color='b')
+        self.waveform1 = waveform.Waveform("Current", amplitude=1.0, frequency=60,color='g', time=self.total_time, samp_per_msec=self.ms_scale)
+        self.waveform2 = waveform.Waveform("Voltage", amplitude=1.0, frequency=60, color='w', phase=90, time=self.total_time, samp_per_msec=self.ms_scale)
+        self.noiseform = Noiseform.Noiseform("Uniform Noise", amplitude = 1, frequency=1.0, color='b', freq_scale=1000, amp_scale=.001, time=self.total_time, samp_per_msec=self.ms_scale)
 
         # Power Waveform information
         self.show_power = True
         self.colorp = 'r'
         self.show_filtered_power = True
         self.colorfp = 'y'
-        self.cutoff = 15.0
-        self.order = 2
-        self.passes = 2
+        self.cutoff = 200.0
+        self.order = 15
+        self.passes = 1
 
         # All the needed arrays for graphing
         self.xs = np.zeros(self.total_length)
@@ -50,6 +57,12 @@ class Plotter(QtGui.QWidget):
         self.ys2 = np.zeros(self.total_length)
         self.ysp = np.zeros(self.total_length)
         self.ysf = np.zeros(self.total_length)
+
+        self.x = np.linspace(0.0, self.total_time, self.sample_size)
+        self.y1 = np.zeros(self.sample_size)
+        self.y2 = np.zeros(self.sample_size)
+        self.yp = np.zeros(self.sample_size)
+        self.yf = np.zeros(self.sample_size)
 
         self.init_ui()                              # Initializes the UI
         self.qt_connections()                       # Connects the buttons to their functions
@@ -109,16 +122,30 @@ class Plotter(QtGui.QWidget):
         butt_win2.addRow(self.labelp)
 
         # Sample Time
-        self.edit_time_box = QtGui.QDoubleSpinBox()
-        self.edit_time_box.setValue(self.total_length/self.time_scale)
+        self.edit_time_box = QtGui.QSpinBox()
+        self.edit_time_box.setRange(0, self.total_time)
+        self.edit_time_box.setValue(self.st)
         self.edit_time_box.setGeometry(1,1,1,1) 
-        self.edit_time_box.setSingleStep(.1)
-        self.edit_time_box.setRange(0, 1000)
-        butt_win1.addRow("Sample Time", self.edit_time_box)
+        self.edit_time_box.setSingleStep(100)
+        butt_win1.addRow("Start Time", self.edit_time_box)
 
-        self.time_unit_box = QtGui.QComboBox()
-        self.time_unit_box.addItems(["s", "ms", "us"])
-        butt_win1.addRow(self.time_unit_box)
+        self.edit_time_box2 = QtGui.QSpinBox()
+        self.edit_time_box2.setRange(0, self.total_time)
+        self.edit_time_box2.setValue(self.et)
+        self.edit_time_box2.setGeometry(1,1,1,1) 
+        self.edit_time_box2.setSingleStep(100)
+        butt_win1.addRow("End Time", self.edit_time_box2)
+
+        self.edit_speed_box = QtGui.QSpinBox()
+        self.edit_speed_box.setRange(0, 1000)
+        self.edit_speed_box.setValue(self.speed)
+        self.edit_speed_box.setGeometry(1,1,1,1) 
+        self.edit_speed_box.setSingleStep(1)
+        butt_win1.addRow("Sample Speed", self.edit_speed_box)
+
+        #self.time_unit_box = QtGui.QComboBox()
+        #self.time_unit_box.addItems(["s", "ms", "us"])
+        #butt_win1.addRow(self.time_unit_box)
 
         # Live/Still
         self.still_button = QtGui.QPushButton("Still")
@@ -207,10 +234,10 @@ class Plotter(QtGui.QWidget):
         butt_win3.addRow(self.color_boxfp)
 
         self.edit_cutoff_box = QtGui.QDoubleSpinBox()
+        self.edit_cutoff_box.setRange(0, 1000)
         self.edit_cutoff_box.setValue(self.cutoff)
         self.edit_cutoff_box.setGeometry(1,1,1,1) 
         self.edit_cutoff_box.setSingleStep(.1)
-        self.edit_cutoff_box.setRange(0, 1000)
         butt_win3.addRow("Cutoff", self.edit_cutoff_box)
 
         self.edit_order_box = QtGui.QSpinBox()
@@ -220,7 +247,7 @@ class Plotter(QtGui.QWidget):
         butt_win3.addRow("Order", self.edit_order_box)
 
         self.edit_pass_box = QtGui.QSpinBox()
-        self.edit_pass_box.setValue(self.order)
+        self.edit_pass_box.setValue(self.passes)
         self.edit_pass_box.setGeometry(1,1,1,1) 
         self.edit_pass_box.setRange(0, 1000)
         butt_win3.addRow("Filter Repetitions", self.edit_pass_box)
@@ -248,7 +275,9 @@ class Plotter(QtGui.QWidget):
 
         # Live/Timing menu
         self.edit_time_box.valueChanged.connect(self.edit_time)
-        self.time_unit_box.currentIndexChanged.connect(self.edit_time_unit)
+        self.edit_time_box2.valueChanged.connect(self.edit_time2)
+        self.edit_speed_box.valueChanged.connect(self.edit_speed)
+        #self.time_unit_box.currentIndexChanged.connect(self.edit_time_unit)
         self.save_button.clicked.connect(self.saveToFile)
         self.still_button.clicked.connect(self.still_toggle)
         self.pause_button.clicked.connect(self.pause_toggle)
@@ -274,14 +303,22 @@ class Plotter(QtGui.QWidget):
 
     def update(self):
         """Calls the function in the generator library"""
-        generator.update(self)
+        #generator.update(self)
+        self.waveform1.set_data()
+        self.waveform2.set_data()
+        generator.updatePlots2(self, self.x, self.waveform1.y, self.waveform2.y)
 
     def edit_time(self):
-        """Adujusts the time_scale to match the given value with the total_time\n
-        Total time in seconds = total_length/time_scale"""
-        if(self.edit_time_box.value() > 0):
-            self.time_scale = self.total_length / self.edit_time_box.value()
-            self.total_time = self.total_length/self.time_scale
+        if(self.edit_time_box.value() < self.et):
+            self.st = self.edit_time_box.value()
+            #self.total_time = self.total_length/self.time_scale
+
+    def edit_time2(self):
+        if(self.edit_time_box2.value() > 0 and self.edit_time_box2.value() > self.st):
+            self.et = self.edit_time_box2.value()
+
+    def edit_speed(self):
+        self.speed = self.edit_speed_box.value()
 
     def edit_time_unit(self, i):
         """Sets the units for time"""
@@ -369,7 +406,7 @@ class Plotter(QtGui.QWidget):
         self.noise = not self.noise
 
     def noise_toggle2(self):
-        """Toggle random noise"""
+        """Toggle uniform noise"""
         self.unoise = not self.unoise
 
     def show_noise_toggle(self):

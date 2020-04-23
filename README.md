@@ -29,3 +29,6 @@ Coronavirus changes: no ADC, no fun
 
 -3/30/20
 Added better buttons
+
+-4/23/20
+Finally another update, new timing system
