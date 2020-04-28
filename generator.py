@@ -10,65 +10,6 @@ import Filter
 
 #import pc_plotter_live
 
-def update(self):
-    """Updates the graph with the new waveform\n 
-        Checks if paused or set to still mode\n
-        If set to live, updates one screen-full per second"""
-    # checks if user has the still image mode selected
-    if(not self.pause):    
-        if(not self.still):     # only updates if not paused
-            # Controls how fast the graph updates (One screen-full per second)
-            if(time.time() - self.timer_thing > self.chunk_size/self.total_length*1.0): 
-                self.timer_thing = time.time() # Refreshes the timer 
-
-                temp = np.linspace(self.xs[self.total_length-1], self.xs[self.total_length-1] + (self.chunk_size/self.time_scale) * self.time_unit, self.chunk_size)
-
-                # Shifts the data 
-                self.xs[:self.total_length-self.chunk_size] = self.xs[self.chunk_size:]
-                self.ys1[:self.total_length-self.chunk_size] = self.ys1[self.chunk_size:]
-                self.ys2[:self.total_length-self.chunk_size] = self.ys2[self.chunk_size:]
-                self.ysp[:self.total_length-self.chunk_size] = self.ysp[self.chunk_size:]
-
-                # Adds chunk_size more inputs to the end of the array
-                self.xs[self.total_length-self.chunk_size:] = temp
-                self.ys1[self.total_length-self.chunk_size:] = sin_from_waveform(temp, self.waveform1)#temp, self.waveform1.amplitude, self.waveform1.amp_scale, self.waveform1.frequency, self.freq_scale1, self.offset1, self.offset_scale1, self.waveform1.phase)
-                self.ys2[self.total_length-self.chunk_size:] = sin_from_waveform(temp, self.waveform2)#add_sin_wave(temp, self.waveform2.amplitude, self.waveform2.amp_scale, self.waveform2.frequency, self.freq_scale2, self.offset2, self.offset_scale2, self.waveform2.phase)
-
-                self.ys1[self.total_length - self.chunk_size:] = add_rand_noise(self, self.ys1[self.total_length - self.chunk_size:], self.noise_magnitude, temp, self.noise, self.unoise)
-                self.ys2[self.total_length - self.chunk_size:] = add_rand_noise(self, self.ys2[self.total_length - self.chunk_size:], self.noise_magnitude, temp, self.noise, self.unoise)
-                self.ysp[self.total_length-self.chunk_size:] = self.ys1[self.total_length-self.chunk_size:] * self.ys2[self.total_length-self.chunk_size:]
-                self.ysf = Filter.filter(self.ysp, self.time_scale, self.cutoff, self.order, self.passes)
-
-                # Adds the data to the graphs
-                updatePlots(self)
-                update_label(self, self.ysp)
-            #else:
-                #temp = 0
-                #print("Waiting...")
-        else:
-            update_still(self)
-
-def update_still(self):
-    """Updates plots for still mode"""
-    #xs_still = np.linspace(0, 2*np.pi * self.total_length/self.time_scale, 360*(max(self.waveform1.frequency, self.waveform2.frequency*self.freq_scale2)))/(2*np.pi)
-    self.xs = np.linspace(0, 2*np.pi * (self.total_length/self.time_scale) * self.time_unit, self.total_length)/(2*np.pi)
-    
-    self.ys1 = sin_from_waveform(self.xs, self.waveform1)
-    self.ys2 = sin_from_waveform(self.xs, self.waveform2)
-
-    self.ys1 = add_rand_noise(self, self.ys1, self.noise_magnitude, self.xs, self.noise, self.unoise)
-    self.ys2 = add_rand_noise(self, self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
-    #self.ysp = add_rand_noise(self, self.ys1 * self.ys2, self.noise_magnitude, self.xs, self.noise, self.unoise)
-    self.ysp = self.ys1 * self.ys2
-    self.ysf = Filter.filter(self.ysp, self.time_scale, self.cutoff, self.order, self.passes)
-
-    updatePlots(self)
-    update_label(self, self.ysp)
-
-    #updatePlots2(self)
-        
-#def update_waveforms(self)
-
 def update_label(self, rp):
     """Updates the labels for rp
     
@@ -151,33 +92,30 @@ def sin_from_waveform(x, waveform_object):
     """
     return add_sin_wave(x, waveform_object.amplitude, waveform_object.amp_scale, waveform_object.frequency/1000, waveform_object.freq_scale, waveform_object.offset, waveform_object.offset_scale, waveform_object.phase)
 
-def updatePlots(self):
-    self.plotcurve1.setData(self.xs, self.ys1, pen=self.waveform1.color, name="AD1")
-    self.plotcurve2.setData(self.xs, self.ys2, pen=self.waveform2.color, name="AD2")
-    if(self.show_power):
-        self.powercurve1.setData(self.xs, self.ysp, pen=self.colorp, name="Power")
-    else:
-        self.powercurve1.setData([],[])
-    if(self.show_filtered_power):
-        self.filtercurve.setData(self.xs, self.ysf, pen=self.colorfp)
-    else:
-        self.filtercurve.setData([],[])
-    if(self.show_noise):
-        self.noisecurve.setData(self.xs, add_rand_noise(self, np.zeros(len(self.xs)), self.noise_magnitude, self.xs, False), pen=self.noiseform.color)
-    else:
-        self.noisecurve.setData([],[])
-
 def updatePlots2(self, x, ys1, ys2):
+    """Updates the waveforms
 
+    Arguments:
+        x {float array} -- x-axis for graphing
+        ys1 {float array} -- first array
+        ys2 {float array} -- second array
+    """        
+
+    self.ypp = ys1 * ys2
     y1, y2 = applyNoise(self, ys1, ys2)
-    getPower(self, y1, y2)
+    getPower(self, ys1, ys2)
 
     self.plotcurve1.setData(x[(self.st*self.ms_scale):(self.et*self.ms_scale)], y1[(self.st*self.ms_scale):(self.et*self.ms_scale)], pen=self.waveform1.color, name="AD1")
     self.plotcurve2.setData(x[(self.st*self.ms_scale):(self.et*self.ms_scale)], y2[(self.st*self.ms_scale):(self.et*self.ms_scale)], pen=self.waveform2.color, name="AD2")
+
     if(self.show_power):
         self.powercurve1.setData(self.x[(self.st*self.ms_scale):(self.et*self.ms_scale)], self.yp[(self.st*self.ms_scale):(self.et*self.ms_scale)], pen=self.colorp, name="Power")
     else:
         self.powercurve1.setData([],[])
+    if(self.show_pure_power):
+        self.powercurve2.setData(self.x[(self.st*self.ms_scale):(self.et*self.ms_scale)], self.ypp[(self.st*self.ms_scale):(self.et*self.ms_scale)], pen=self.colorpp, name="Pure Power")
+    else:
+        self.powercurve2.setData([],[])
     if(self.show_filtered_power):
         self.filtercurve.setData(self.x[(self.st*self.ms_scale):(self.et*self.ms_scale)], self.yf[(self.st*self.ms_scale):(self.et*self.ms_scale)], pen=self.colorfp)
     else:
@@ -190,8 +128,6 @@ def updatePlots2(self, x, ys1, ys2):
     update_label(self, self.yp)
 
     if(not self.pause):
-        #self.st += self.speed
-        #self.et += self.speed
         if(self.et < self.total_time):
             self.edit_time_box.setValue(self.st+self.speed)
             self.edit_time_box2.setValue(self.et+self.speed)
@@ -200,11 +136,25 @@ def updatePlots2(self, x, ys1, ys2):
             self.pause_button.toggle()
 
 def getPower(self, y1, y2):
+    """Calculates power based on y1 and y2
+
+    Arguments:
+        y1 {float array} -- first waveform
+        y2 {float array} -- second waveform
+    """    
     self.yp = y1 * y2
-    self.yf = Filter.filter(self.yp, self.ms_scale*1000, self.cutoff, self.order, self.passes)
+    self.yf = Filter.filter(self.yp, self.ms_scale*1000, self.cutoff, self.order)
 
 def applyNoise(self, y1, y2):
+    """Adds noise to the given waveforms
 
+    Arguments:
+        y1 {float array} -- first waveform
+        y2 {float array} -- second waveform
+
+    Returns:
+        floatarray, float array -- the new waveforms with noise
+    """    
     new_y1 = y1
     new_y1 = add_rand_noise(self, new_y1, self.noise_magnitude, self.x, self.noise, self.unoise)
     new_y2 = y2

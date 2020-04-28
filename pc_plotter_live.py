@@ -14,18 +14,12 @@ class Plotter(QtGui.QWidget):
         """Initializes all elements in the system"""
         super(Plotter, self).__init__()
         print("Starting init")
-        self.total_length = 10000                  # total sample size
-        self.time = 1000                           # time of sample in ms
-        self.time_scale = 10000.0                  # samples per second, total time = total_length/time_scale
-        self.chunk_size = 400
-        self.time_unit = 1.0
-        self.power = 0.0
-
+        
         self.total_time = 5000
         self.ms_scale = 20
         self.sample_size = self.total_time * self.ms_scale
-        self.st = 1000
-        self.et = 1100
+        self.st = 0
+        self.et = 100
         self.speed = 1
 
         self.timer_thing = time.time()
@@ -40,28 +34,25 @@ class Plotter(QtGui.QWidget):
 
         self.waveform1 = waveform.Waveform("Current", amplitude=1.0, frequency=60,color='g', time=self.total_time, samp_per_msec=self.ms_scale)
         self.waveform2 = waveform.Waveform("Voltage", amplitude=1.0, frequency=60, color='w', phase=90, time=self.total_time, samp_per_msec=self.ms_scale)
-        self.noiseform = Noiseform.Noiseform("Uniform Noise", amplitude = 1, frequency=1.0, color='b', freq_scale=1000, amp_scale=.001, time=self.total_time, samp_per_msec=self.ms_scale)
+        self.noiseform = Noiseform.Noiseform("Uniform Noise", amplitude = 50, frequency=1.0, color='b', freq_scale=1000, amp_scale=.001, time=self.total_time, samp_per_msec=self.ms_scale)
 
         # Power Waveform information
         self.show_power = True
         self.colorp = 'r'
         self.show_filtered_power = True
         self.colorfp = 'y'
+        self.show_pure_power = True
+        self.colorpp = 'm'
         self.cutoff = 200.0
         self.order = 15
-        self.passes = 1
 
         # All the needed arrays for graphing
-        self.xs = np.zeros(self.total_length)
-        self.ys1 = np.zeros(self.total_length)
-        self.ys2 = np.zeros(self.total_length)
-        self.ysp = np.zeros(self.total_length)
-        self.ysf = np.zeros(self.total_length)
-
+ 
         self.x = np.linspace(0.0, self.total_time, self.sample_size)
         self.y1 = np.zeros(self.sample_size)
         self.y2 = np.zeros(self.sample_size)
         self.yp = np.zeros(self.sample_size)
+        self.ypp = np.zeros(self.sample_size)        
         self.yf = np.zeros(self.sample_size)
 
         self.init_ui()                              # Initializes the UI
@@ -71,11 +62,13 @@ class Plotter(QtGui.QWidget):
         self.plotcurve1 = pg.PlotCurveItem()        
         self.plotcurve2 = pg.PlotCurveItem()
         self.powercurve1 = pg.PlotCurveItem()
+        self.powercurve2 = pg.PlotCurveItem()
         self.noisecurve = pg.PlotCurveItem()
         self.filtercurve = pg.PlotCurveItem()
         self.plotwidget.addItem(self.plotcurve1)
         self.plotwidget.addItem(self.plotcurve2)
         self.plotwidget.addItem(self.powercurve1)  
+        self.plotwidget.addItem(self.powercurve2)  
         self.plotwidget.addItem(self.noisecurve)      
         self.plotwidget.addItem(self.filtercurve)      
 
@@ -96,7 +89,7 @@ class Plotter(QtGui.QWidget):
         self.plotwidget = pg.PlotWidget()
         self.plotwidget.setTitle("Power")
         self.plotwidget.setLabel('left', "Voltage(V)")
-        self.plotwidget.setLabel('bottom', "Time(s)")
+        self.plotwidget.setLabel('bottom', "Time(ms)")
         self.plotwidget.showGrid(x=True, y=True)
         win.addWidget(self.plotwidget) 
 
@@ -143,19 +136,14 @@ class Plotter(QtGui.QWidget):
         self.edit_speed_box.setSingleStep(1)
         butt_win1.addRow("Sample Speed", self.edit_speed_box)
 
-        #self.time_unit_box = QtGui.QComboBox()
-        #self.time_unit_box.addItems(["s", "ms", "us"])
-        #butt_win1.addRow(self.time_unit_box)
-
-        # Live/Still
-        self.still_button = QtGui.QPushButton("Still")
-        self.still_button.setCheckable(True)
-        butt_win1.addRow(self.still_button)
-
         # Pause
         self.pause_button = QtGui.QPushButton("Pause")
         self.pause_button.setCheckable(True)
         butt_win1.addRow(self.pause_button)
+
+        # Reset
+        self.reset_button = QtGui.QPushButton("Reset")
+        butt_win1.addRow(self.reset_button)
 
         # Save
         self.save_button = QtGui.QPushButton("Save")
@@ -222,6 +210,11 @@ class Plotter(QtGui.QWidget):
         self.show_noise_button.setCheckable(True)
         butt_win3.addRow(self.show_noise_button)
 
+        self.show_power_buttonp = QtGui.QPushButton("Pure Power")
+        self.show_power_buttonp.setCheckable(True)
+        self.show_power_buttonp.toggle()
+        butt_win3.addRow(self.show_power_buttonp)
+
         # Filter
         self.show_power_buttonf = QtGui.QPushButton("Filtered Power")
         self.show_power_buttonf.setCheckable(True)
@@ -246,23 +239,12 @@ class Plotter(QtGui.QWidget):
         self.edit_order_box.setRange(0, 1000)
         butt_win3.addRow("Order", self.edit_order_box)
 
-        self.edit_pass_box = QtGui.QSpinBox()
-        self.edit_pass_box.setValue(self.passes)
-        self.edit_pass_box.setGeometry(1,1,1,1) 
-        self.edit_pass_box.setRange(0, 1000)
-        butt_win3.addRow("Filter Repetitions", self.edit_pass_box)
-
         column3.addLayout(butt_win3)
         column3.addLayout(self.noiseform.butt_win)
-
-        #self.setGeometry(20, 50, 1200, 600)     # Sets the layout size
 
         win.addLayout(column1)
         win.addLayout(column2)                 # adds the windows to the main window
         win.addLayout(column3)
-
-        #temp = waveform.Waveform("Test")
-        #win.addLayout(temp.butt_win)
 
         self.setLayout(win)                     # sets the main layout
         self.show()                             # displays the window
@@ -279,13 +261,14 @@ class Plotter(QtGui.QWidget):
         self.edit_speed_box.valueChanged.connect(self.edit_speed)
         #self.time_unit_box.currentIndexChanged.connect(self.edit_time_unit)
         self.save_button.clicked.connect(self.saveToFile)
-        self.still_button.clicked.connect(self.still_toggle)
+        self.reset_button.clicked.connect(self.reset)
         self.pause_button.clicked.connect(self.pause_toggle)
 
         #Power
         self.show_power_button.clicked.connect(self.power_toggle)
         self.color_boxp.currentIndexChanged.connect(self.edit_colorp)
         self.show_power_buttonf.clicked.connect(self.filter_toggle)
+        self.show_power_buttonp.clicked.connect(self.pure_toggle)
 
         # Noise
         self.rand_noise_box.valueChanged.connect(self.edit_noise)
@@ -296,7 +279,6 @@ class Plotter(QtGui.QWidget):
         self.color_boxfp.currentIndexChanged.connect(self.edit_colorfp)
         self.edit_cutoff_box.valueChanged.connect(self.edit_cutoff)
         self.edit_order_box.valueChanged.connect(self.edit_order)
-        self.edit_pass_box.valueChanged.connect(self.edit_passes)
 
         print("Buttons Complete!")
         
@@ -309,15 +291,18 @@ class Plotter(QtGui.QWidget):
         generator.updatePlots2(self, self.x, self.waveform1.y, self.waveform2.y)
 
     def edit_time(self):
+        """Edits st"""
         if(self.edit_time_box.value() < self.et):
             self.st = self.edit_time_box.value()
             #self.total_time = self.total_length/self.time_scale
 
     def edit_time2(self):
+        """Edits et"""
         if(self.edit_time_box2.value() > 0 and self.edit_time_box2.value() > self.st):
             self.et = self.edit_time_box2.value()
 
     def edit_speed(self):
+        """Edits speed"""                  
         self.speed = self.edit_speed_box.value()
 
     def edit_time_unit(self, i):
@@ -334,8 +319,8 @@ class Plotter(QtGui.QWidget):
     def saveToFile(self):
         """# Writes the data into the save file"""
         F = open("data", "w")
-        for i in range (self.total_length):
-            F.write(str(self.xs[i]) + "\t" + str(self.ys1[i]) + "\t" + str(self.ys2[i]) + "\t" + str(self.ysp[i]) + "\n")
+        for i in range (self.sample_size):
+            F.write(str(self.x[i]) + "\t" + str(self.y1[i]) + "\t" + str(self.y2[i]) + "\n")
         F.close()
         print("Saving to data file")
 
@@ -353,8 +338,19 @@ class Plotter(QtGui.QWidget):
         """Toggles pause mode"""
         self.pause = not self.pause
 
+    def reset(self):
+        """Sets st to 0 and sets et to 0 + the difference between them"""     
+        temp = self.st
+        self.edit_time_box.setValue(self.st-temp)
+        self.edit_time_box2.setValue(self.et-temp)
+
     def power_toggle(self):
+        """Toggles the power waveform"""
         self.show_power = not self.show_power
+
+    def pure_toggle(self):
+        """Toggles the pure power waveform"""
+        self.show_pure_power = not self.show_pure_power
 
     def edit_colorp(self, i):
         """Edits color"""
@@ -372,6 +368,7 @@ class Plotter(QtGui.QWidget):
             self.colorp = None
 
     def filter_toggle(self):
+        """Toggles the filter"""
         self.show_filtered_power = not self.show_filtered_power
 
     def edit_colorfp(self, i):
@@ -390,16 +387,14 @@ class Plotter(QtGui.QWidget):
             self.colorfp = None
 
     def edit_cutoff(self):
+        """Edits the cutoff frequency"""
         if(self.edit_cutoff_box.value() > 0):
             self.cutoff = self.edit_cutoff_box.value()
 
     def edit_order(self):
+        """Edits the order of the filter"""
         if(self.edit_order_box.value() > 0):
             self.order = self.edit_order_box.value()
-
-    def edit_passes(self):
-        if(self.edit_pass_box.value() > 0):
-            self.passes = self.edit_pass_box.value()
 
     def noise_toggle(self):
         """Toggle random noise"""
@@ -410,9 +405,11 @@ class Plotter(QtGui.QWidget):
         self.unoise = not self.unoise
 
     def show_noise_toggle(self):
+        """Toggles the noise waveform display"""
         self.show_noise = not self.show_noise
 
     def edit_noise(self):
+        """Edits the noise magnitude for random noise"""
         self.noise_magnitude = self.rand_noise_box.value()
 
 def main():
